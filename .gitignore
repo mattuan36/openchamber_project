@@ -30,3 +30,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Generated bracket reports
+bracket_report.xlsx
+reports/
+.bracket_report_*.xlsx

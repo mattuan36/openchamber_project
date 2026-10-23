@@ -31,7 +31,13 @@ def test_cli_writes_report(tmp_path: Path, sample_factory, capsys) -> None:
     assert "No actual-results" not in captured.err
     workbook = load_workbook(output, read_only=True)
     try:
-        assert workbook.sheetnames == ["Picks", "Standings"]
+        assert workbook.sheetnames == [
+            "Picks",
+            "Standings",
+            "State",
+            "Teams",
+            "Corrections",
+        ]
     finally:
         workbook.close()
 

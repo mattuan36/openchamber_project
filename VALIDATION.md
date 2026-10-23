@@ -116,7 +116,58 @@ Championship.
 | Invalid actual | Always fails, even with `--skip-invalid` |
 | Input immutability | SHA-256 digests unchanged before and after loading and report writing |
 | Atomic report write | Successful `.xlsx` written through a temporary file; no temporary file left behind |
-| Test suite | 52 tests passed |
+| Five-sheet report | `Picks`, `Standings`, `State`, `Teams`, `Corrections`; all five visible; no hidden state sheet |
+| Report round trip | Saved and reloaded picks, entrants, corrections, and scores match |
+| Derived Standings | Tampered ranks, totals, and accuracy in the workbook are ignored; scores are recalculated from Picks |
+| Header reordering | Picks columns reversed after save; loading by header name recovers every pick |
+| State contents | Schema, created/updated UTC, source folder, rules, app, format; no entrant names, picks, or source filenames |
+| Teams contents | Exactly 32 R64 matchups with slot, region, both teams, and printed seeds; play-in labels keep both entrants and repeat the shared seed |
+| Corrections contents | Timestamp, entrant, source file, slot, old/new pick, reason; entries survive reload |
+| Seed round trip | Seeds for normal and play-in games survive save/reload and normalize into the board's team-to-seed map |
+| Legacy five-sheet seeds | A four-column Teams sheet loads names-only with no seed map and a rebuild hint in Actual Results |
+| Actual cascade/pending | Changing `R64-E1` to Siena clears impossible `R32-E1`, `S16-E1`, and `E8-E1` picks, raises pending to 3, and scores MATT 135 |
+| Actual Results board | Three panels with East/South on the left, West/Midwest mirrored on the right, and Final Four/Championship in the center; R32/S16/E8 cards align with feeder spans |
+| Winner toggle | Clicking a team highlights it; clicking the highlighted winner again clears the game back to pending |
+| Entrant correction gate | Empty reason and invalid team are rejected; a valid correction is logged and reloads |
+| Overwrite protection | Raw `.xlsx` target refuses to save and keeps its digest; saved report can be overwritten |
+| Locked report | `os.replace` permission failure raises a clear message, keeps the in-memory edit, and leaves the saved report unchanged |
+| Legacy report loading | A Picks/Standings-only report loads with legacy metadata and a warning; it is read-only and saving is refused until rebuilt from raw brackets |
+| Local folder workflow | 3 raw files discovered, report produced, report detected separately, rebuild restores original actual picks; `~$` owner files and nested files are ignored |
+| Report-only folder | A folder with only a saved report can still continue; rebuilding from raw files is refused |
+| Team disagreement warning | An entrant with a different first-round matchup emits a warning and does not override the actual bracket |
+| Fresh-session continue | An existing report loads automatically, with matching picks and scores |
+| Save As sync | Saving to a new report path updates the active report and the editable Setup path |
+| Streamlit AppTest | Demo load, actual edit, winner toggle, seeded board and mirrored paths, leaderboard, compare, save, reload, Save As, and fresh-session continue all run without app exceptions |
+| Test suite | 70 tests passed |
+
+## Streamlit and five-sheet verification
+
+Run the app locally:
+
+```powershell
+.\venv\Scripts\streamlit.exe run app.py
+```
+
+Verified flow:
+
+1. The default folder `sample_data\demo` scans three raw bracket files and
+   auto-selects `2026_results.csv` as the actual bracket.
+2. Creating the report writes `bracket_report.xlsx` with five visible sheets
+   and an empty Corrections sheet.
+3. `sample_data\demo` scores MATT 148 and CHRIS 136, matching the CLI.
+4. Actual Results renders the three-panel board. East/South read
+   `R64 → R32 → S16 → E8`; West/Midwest read `E8 ← S16 ← R32 ← R64`. Every
+   matchup shows seeds, the selected winner is highlighted, and later-round
+   cards sit at the centers of their feeder spans.
+5. Changing actual `R64-E1` from Duke to Siena clears the no-longer-possible
+   `R32-E1`, `S16-E1`, and `E8-E1` picks, marks three games pending, and lowers
+   MATT to 135 and CHRIS to 123. Clicking Siena again clears `R64-E1` to pending
+   (four pending games); clicking it once more restores the three-pending state.
+6. Saving and reloading the report preserves that edit, the seeds, and the
+   recalculated standings. Corrections made through the advanced Compare
+   control are logged and persist across reload.
+7. The AppTest smoke test repeats this flow headlessly, including the board
+   markup, winner toggle, Leaderboard, and Compare pages.
 
 ## Reproduce
 
@@ -127,5 +178,9 @@ Championship.
 
 The test suite covers the slot map, anchors, merged-cell resolution, discovery,
 actual selection and overrides, template/seed failures, all scoring weights,
-pending logic, accuracy denominators, tie-breaks, competition ranks, report
-shape and fills, atomic writes, input immutability, and CLI exit codes.
+pending logic, accuracy denominators, tie-breaks, competition ranks, per-game
+results and cascades, five-sheet report shape and fills, header reordering,
+report round trips, seeded and legacy Teams contents, State/Teams/Corrections
+contents, entrant correction logging, atomic writes, overwrite and locked-file
+handling, legacy report loading, local-folder scan and rebuild, input
+immutability, CLI exit codes, and the Streamlit AppTest workflow.

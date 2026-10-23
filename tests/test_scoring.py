@@ -6,7 +6,15 @@ from dataclasses import replace
 from pathlib import Path
 
 from bracket.loader import Bracket, parse_bracket
-from bracket.scoring import maximum_points, score_all, score_entrant
+from bracket.scoring import (
+    GameResult,
+    available_picks,
+    cascade_clear,
+    maximum_points,
+    score_all,
+    score_entrant,
+    score_games,
+)
 from bracket.template import TOTAL_MAX_POINTS
 
 
@@ -176,3 +184,57 @@ def test_score_all_does_not_include_the_actual_bracket(sample_csv: Path) -> None
     actual = parse_bracket(sample_csv)
     scores = score_all(actual, [])
     assert scores == []
+
+
+def test_score_games_reports_correct_incorrect_and_pending(sample_csv: Path) -> None:
+    actual = parse_bracket(sample_csv)
+    actual = replace(actual, picks={**actual.picks, "CH": ""})
+    entrant = _bracket(
+        actual,
+        "MIXED",
+        {"R64-E1": "Wrong", "CH": "Houston"},
+    )
+    results = score_games(actual, entrant)
+    by_slot = {result.slot_id: result for result in results}
+    assert len(results) == 63
+    assert all(isinstance(result, GameResult) for result in results)
+    assert by_slot["R64-E1"].status == "incorrect"
+    assert by_slot["R64-E1"].points == 0
+    assert by_slot["R64-E2"].status == "correct"
+    assert by_slot["R64-E2"].points == 1
+    assert by_slot["CH"].status == "pending"
+    assert by_slot["CH"].points == 0
+    assert by_slot["CH"].pick == "Houston"
+
+
+def test_available_picks_and_cascade_clearing(sample_csv: Path) -> None:
+    actual = parse_bracket(sample_csv)
+    pairs = actual.team_pairs
+    assert available_picks("R64-E1", pairs, actual.picks) == ["Duke", "Siena"]
+    assert available_picks("R32-E1", pairs, actual.picks) == ["Duke", "Ohio State"]
+
+    picks = dict(actual.picks)
+    picks["R64-E1"] = "Siena"
+    cleared_picks, cleared = cascade_clear(picks, "R64-E1")
+    assert cleared == ["R32-E1"]
+    assert cleared_picks["R32-E1"] == ""
+
+    # With team pairs, impossible picks clear transitively through the subtree.
+    picks = dict(actual.picks)
+    picks["R64-E1"] = "Siena"
+    transitive, cleared = cascade_clear(picks, "R64-E1", pairs)
+    assert cleared == ["R32-E1", "S16-E1", "E8-E1"]
+    assert transitive["R32-E1"] == ""
+    assert transitive["S16-E1"] == ""
+    assert transitive["E8-E1"] == ""
+    assert transitive["F4-1"] == "Houston"
+    assert transitive["CH"] == "Arizona"
+
+    # Incomplete feeders leave a downstream pick alone: it may still be possible.
+    picks = dict(actual.picks)
+    for slot_id in ("R64-E1", "R64-E2"):
+        picks[slot_id] = ""
+    picks["R32-E1"] = "Duke"
+    unchanged, cleared = cascade_clear(picks, "R64-E1")
+    assert cleared == []
+    assert unchanged["R32-E1"] == "Duke"

@@ -1,9 +1,15 @@
-"""Formatted two-sheet Excel report for the bracket scorekeeper."""
+"""Five-sheet Excel report for the bracket scorekeeper.
+
+Sheets: Picks (participants and picks), Standings (derived), State (visible
+metadata), Teams (the 32 first-round matchups), and Corrections (entrant-fix
+audit log). No hidden state sheet is used.
+"""
 
 from __future__ import annotations
 
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -23,12 +29,80 @@ from .template import (
     SLOT_IDS,
     SLOTS_BY_ID,
     TOTAL_MAX_POINTS,
+    slot_header,
     team_matches,
 )
 
 
 class ReportError(Exception):
     """A user-facing report-writing problem."""
+
+
+REPORT_SCHEMA_VERSION = "3"
+REPORT_FORMAT_NAME = "2026 March Madness Five-Sheet Report"
+RULES_VERSION = "2026.1"
+APP_VERSION = "2.1.0"
+
+STATE_FIELDS: tuple[str, ...] = (
+    "Report schema version",
+    "Created (UTC)",
+    "Updated (UTC)",
+    "Source folder",
+    "Scoring rules version",
+    "App version",
+    "Report format",
+)
+
+CORRECTION_FIELDS: tuple[str, ...] = (
+    "Timestamp",
+    "Entrant",
+    "Source File",
+    "Slot",
+    "Old Pick",
+    "New Pick",
+    "Reason",
+)
+
+TEAM_FIELDS: tuple[str, ...] = ("Slot", "Region", "Team 1", "Team 2")
+TEAM_SEED_FIELDS: tuple[str, ...] = ("Seed 1", "Seed 2")
+SEEDED_TEAM_FIELDS: tuple[str, ...] = (
+    "Slot",
+    "Region",
+    "Seed 1",
+    "Team 1",
+    "Seed 2",
+    "Team 2",
+)
+
+
+def utc_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def default_state(
+    dataset: Dataset,
+    *,
+    source_folder: str | Path | None = None,
+    created: str | None = None,
+    updated: str | None = None,
+) -> dict[str, str]:
+    """Build the visible State metadata block."""
+
+    now = utc_now_iso()
+    folder = (
+        str(source_folder)
+        if source_folder is not None
+        else str(dataset.actual.path.parent)
+    )
+    return {
+        "Report schema version": REPORT_SCHEMA_VERSION,
+        "Created (UTC)": created or now,
+        "Updated (UTC)": updated or now,
+        "Source folder": folder,
+        "Scoring rules version": RULES_VERSION,
+        "App version": APP_VERSION,
+        "Report format": REPORT_FORMAT_NAME,
+    }
 
 
 # Palette: dark, round-coded headers with pale data fills.
@@ -74,13 +148,7 @@ THIN_GRAY = Side(style="thin", color="D9D9D9")
 
 
 def _slot_header(slot_id: str) -> str:
-    slot = SLOTS_BY_ID[slot_id]
-    if slot.round == "CH":
-        return "Championship"
-    if slot.round == "F4":
-        return f"F4 Game {slot.game}"
-    region = REGION_NAMES[slot.region or ""]
-    return f"{slot.round} {region} {slot.game}"
+    return slot_header(slot_id)
 
 
 def _slot_comment(slot_id: str) -> str:
@@ -418,16 +486,255 @@ def _build_standings_sheet(
     )
 
 
-def build_report(dataset: Dataset, scores: list[EntrantScore]) -> Workbook:
-    """Build the report workbook in memory."""
+def _report_team_pairs(dataset: Dataset) -> dict[str, tuple[str, ...]]:
+    if dataset.actual.team_pairs:
+        return dict(dataset.actual.team_pairs)
+    for entrant in dataset.entrants:
+        if entrant.team_pairs:
+            return dict(entrant.team_pairs)
+    return {}
+
+
+def _report_team_seeds(dataset: Dataset) -> dict[str, tuple[int, ...]]:
+    if dataset.actual.team_seeds:
+        return dict(dataset.actual.team_seeds)
+    for entrant in dataset.entrants:
+        if entrant.team_seeds:
+            return dict(entrant.team_seeds)
+    return {}
+
+
+def _complete_seed_pairs(
+    team_pairs: dict[str, tuple[str, ...]],
+    team_seeds: dict[str, tuple[int, ...]],
+) -> bool:
+    if not team_seeds:
+        return False
+    return all(
+        len(team_pairs.get(slot_id, ())) >= 2
+        and len(team_seeds.get(slot_id, ())) == len(team_pairs[slot_id])
+        for slot_id in SLOT_IDS
+        if slot_id.startswith("R64-")
+    )
+
+
+def _seeded_team_columns(
+    teams: tuple[str, ...], seeds: tuple[int, ...]
+) -> tuple[int, str, int, str] | None:
+    """Group the expanded teams back into the two printed bracket rows.
+
+    A play-in row has two teams sharing one seed, so the seed change is the
+    reliable boundary between the top and bottom printed labels.
+    """
+
+    if len(teams) < 2 or len(teams) != len(seeds):
+        return None
+    split = next(
+        (index for index in range(1, len(seeds)) if seeds[index] != seeds[0]),
+        len(teams),
+    )
+    if split >= len(teams):
+        return None
+    team_one = " / ".join(teams[:split])
+    team_two = " / ".join(teams[split:])
+    if not team_one or not team_two:
+        return None
+    return seeds[0], team_one, seeds[split], team_two
+
+
+def _build_state_sheet(
+    workbook: Workbook, state: dict[str, str]
+) -> None:
+    sheet = workbook.create_sheet("State")
+    sheet.sheet_properties.tabColor = "7F7F7F"
+    sheet.sheet_view.showGridLines = False
+    sheet.sheet_view.zoomScale = 100
+
+    for column, label in enumerate(("Key", "Value"), start=1):
+        cell = sheet.cell(row=1, column=column, value=label)
+        cell.font = HEADER_FONT
+        cell.fill = _fill(DARK_BLUE)
+        cell.alignment = CENTER
+
+    values = state or {}
+    for row_index, key in enumerate(STATE_FIELDS, start=2):
+        _set_cell(
+            sheet.cell(row=row_index, column=1, value=key),
+            key,
+            font=BODY_BOLD,
+            alignment=LEFT,
+            fill="F2F2F2",
+        )
+        _set_cell(
+            sheet.cell(row=row_index, column=2, value=values.get(key, "")),
+            values.get(key, ""),
+            alignment=LEFT_WRAP,
+        )
+
+    # Any unexpected metadata keys stay visible rather than being discarded.
+    for row_index, key in enumerate(
+        (key for key in values if key not in STATE_FIELDS), start=2 + len(STATE_FIELDS)
+    ):
+        _set_cell(
+            sheet.cell(row=row_index, column=1, value=key),
+            key,
+            font=BODY_BOLD,
+            alignment=LEFT,
+            fill="F2F2F2",
+        )
+        _set_cell(
+            sheet.cell(row=row_index, column=2, value=values[key]),
+            values[key],
+            alignment=LEFT_WRAP,
+        )
+
+    sheet.column_dimensions["A"].width = 28
+    sheet.column_dimensions["B"].width = 58
+    sheet.freeze_panes = "A2"
+
+
+def _build_teams_sheet(
+    workbook: Workbook, dataset: Dataset
+) -> None:
+    sheet = workbook.create_sheet("Teams")
+    sheet.sheet_properties.tabColor = "2F5597"
+    sheet.sheet_view.showGridLines = False
+    sheet.sheet_view.zoomScale = 100
+
+    pairs = _report_team_pairs(dataset)
+    seeds = _report_team_seeds(dataset)
+    seeded = _complete_seed_pairs(pairs, seeds)
+    fields = SEEDED_TEAM_FIELDS if seeded else TEAM_FIELDS
+    for column, label in enumerate(fields, start=1):
+        cell = sheet.cell(row=1, column=column, value=label)
+        cell.font = HEADER_FONT
+        cell.fill = _fill(DARK_BLUE)
+        cell.alignment = CENTER
+
+    row_index = 2
+    for slot_id in SLOT_IDS:
+        if not slot_id.startswith("R64-"):
+            continue
+        teams = pairs.get(slot_id, ())
+        slot = SLOTS_BY_ID[slot_id]
+        if seeded:
+            columns = _seeded_team_columns(teams, seeds.get(slot_id, ()))
+            if columns is None:
+                raise ReportError(
+                    f"Could not group the seeded teams for {slot_id} into two "
+                    "printed matchup rows."
+                )
+            seed_one, team_one, seed_two, team_two = columns
+        else:
+            seed_one = seed_two = None
+            team_one = teams[0] if teams else ""
+            team_two = " / ".join(teams[1:]) if len(teams) > 1 else ""
+
+        _set_cell(
+            sheet.cell(row=row_index, column=1, value=slot_id),
+            slot_id,
+            font=BODY_BOLD,
+        )
+        _set_cell(
+            sheet.cell(row=row_index, column=2, value=REGION_NAMES[slot.region or ""]),
+            REGION_NAMES[slot.region or ""],
+            alignment=LEFT,
+        )
+        if seeded:
+            _set_cell(
+                sheet.cell(row=row_index, column=3, value=seed_one),
+                seed_one,
+            )
+            _set_cell(
+                sheet.cell(row=row_index, column=4, value=team_one),
+                team_one,
+                alignment=LEFT_WRAP,
+            )
+            _set_cell(
+                sheet.cell(row=row_index, column=5, value=seed_two),
+                seed_two,
+            )
+            _set_cell(
+                sheet.cell(row=row_index, column=6, value=team_two),
+                team_two,
+                alignment=LEFT_WRAP,
+            )
+        else:
+            _set_cell(
+                sheet.cell(row=row_index, column=3, value=team_one),
+                team_one,
+                alignment=LEFT_WRAP,
+            )
+            _set_cell(
+                sheet.cell(row=row_index, column=4, value=team_two),
+                team_two,
+                alignment=LEFT_WRAP,
+            )
+        row_index += 1
+
+    if seeded:
+        widths = {"A": 12, "B": 14, "C": 8, "D": 30, "E": 8, "F": 30}
+        last_column = "F"
+    else:
+        widths = {"A": 12, "B": 14, "C": 30, "D": 30}
+        last_column = "D"
+    for column, width in widths.items():
+        sheet.column_dimensions[column].width = width
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = f"A1:{last_column}{row_index - 1}"
+
+
+def _build_corrections_sheet(
+    workbook: Workbook, corrections: list[dict[str, str]]
+) -> None:
+    sheet = workbook.create_sheet("Corrections")
+    sheet.sheet_properties.tabColor = "C55A11"
+    sheet.sheet_view.showGridLines = False
+    sheet.sheet_view.zoomScale = 100
+
+    for column, label in enumerate(CORRECTION_FIELDS, start=1):
+        cell = sheet.cell(row=1, column=column, value=label)
+        cell.font = HEADER_FONT
+        cell.fill = _fill(DARK_BLUE)
+        cell.alignment = CENTER
+
+    for row_index, entry in enumerate(corrections, start=2):
+        for column, field_name in enumerate(CORRECTION_FIELDS, start=1):
+            value = entry.get(field_name, "")
+            _set_cell(
+                sheet.cell(row=row_index, column=column, value=value),
+                value,
+                alignment=LEFT_WRAP,
+            )
+        sheet.row_dimensions[row_index].height = 28
+
+    widths = {"A": 23, "B": 20, "C": 32, "D": 12, "E": 20, "F": 20, "G": 52}
+    for column, width in widths.items():
+        sheet.column_dimensions[column].width = width
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = f"A1:G{max(1, len(corrections) + 1)}"
+
+
+def build_report(
+    dataset: Dataset,
+    scores: list[EntrantScore],
+    *,
+    state: dict[str, str] | None = None,
+    corrections: list[dict[str, str]] | None = None,
+) -> Workbook:
+    """Build the five-sheet report workbook in memory."""
 
     workbook = Workbook()
     _build_picks_sheet(workbook, dataset, scores)
     _build_standings_sheet(workbook, dataset, scores)
+    _build_state_sheet(workbook, state if state is not None else default_state(dataset))
+    _build_teams_sheet(workbook, dataset)
+    _build_corrections_sheet(workbook, list(corrections or []))
     workbook.properties.title = REPORT_TITLE
     workbook.properties.creator = "Bracket Scorekeeper"
     workbook.properties.description = (
-        "Actual results, entrant picks, standings, pending games, and accuracy."
+        "Actual results, entrant picks, standings, visible metadata, "
+        "first-round teams, and entrant correction history."
     )
     return workbook
 
@@ -436,8 +743,11 @@ def write_report(
     dataset: Dataset,
     scores: list[EntrantScore],
     output_path: Path,
+    *,
+    state: dict[str, str] | None = None,
+    corrections: list[dict[str, str]] | None = None,
 ) -> Path:
-    """Write the report atomically, refusing to overwrite an input file."""
+    """Write the five-sheet report atomically, refusing to overwrite an input."""
 
     output_path = Path(output_path).resolve()
     input_paths = {path.resolve() for path in dataset.files}
@@ -447,11 +757,21 @@ def write_report(
     ):
         raise ReportError(
             f"Refusing to overwrite an input file: {output_path}. Choose a "
-            "different --output path."
+            "different report path."
+        )
+    if "results" in output_path.stem.casefold():
+        raise ReportError(
+            "The report filename must not contain 'results'; that word "
+            "identifies the actual-results input during discovery."
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    workbook = build_report(dataset, scores)
+    workbook = build_report(
+        dataset,
+        scores,
+        state=state,
+        corrections=corrections,
+    )
     temp_name: str | None = None
     try:
         file_descriptor, temp_name = tempfile.mkstemp(

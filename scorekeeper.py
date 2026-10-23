@@ -40,13 +40,14 @@ def _parser() -> argparse.ArgumentParser:
         prog="scorekeeper.py",
         description=(
             "Score 2026 March Madness brackets against an actual-results "
-            "workbook and write a formatted two-sheet Excel report."
+            "workbook and write a formatted five-sheet Excel report."
         ),
         epilog=(
             "The actual-results file is chosen by a filename containing "
             "'results' (case-insensitive), unless --actual is supplied. "
-            "Inputs are never modified. The report contains Picks and "
-            "Standings sheets."
+            "Inputs are never modified. The report contains Picks, Standings, "
+            "State, Teams, and Corrections sheets and can be reopened by the "
+            "Streamlit app."
         ),
     )
     parser.add_argument(

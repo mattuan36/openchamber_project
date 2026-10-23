@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Iterable
 
@@ -158,7 +158,11 @@ def is_generated_report(path: Path) -> bool:
     try:
         return (
             workbook.properties.title == REPORT_TITLE
-            and workbook.sheetnames == ["Picks", "Standings"]
+            and (
+                workbook.sheetnames == ["Picks", "Standings"]
+                or workbook.sheetnames
+                == ["Picks", "Standings", "State", "Teams", "Corrections"]
+            )
         )
     finally:
         workbook.close()
@@ -287,6 +291,11 @@ class Bracket:
     picks: dict[str, str]
     warnings: tuple[str, ...]
     sheet_name: str
+    # The two first-round teams for each R64 slot, as printed on the bracket.
+    # Needed for report generation and for validating edited picks.
+    team_pairs: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    # Seeds aligned with team_pairs. Play-in teams repeat the shared seed.
+    team_seeds: dict[str, tuple[int, ...]] = field(default_factory=dict)
 
     @property
     def filled(self) -> int:
@@ -310,26 +319,40 @@ class Dataset:
         return sum(1 for value in self.actual.picks.values() if not value.strip())
 
 
-def _read_seeds(grid: Grid, slots: Iterable[Slot], path: Path) -> None:
+def _read_seeds(
+    grid: Grid, slots: Iterable[Slot], path: Path
+) -> dict[str, tuple[int, ...]]:
+    """Read the two printed seeds for every R64 game.
+
+    The returned tuples follow the printed row order. Validation still happens
+    here so a malformed template fails before any bracket data is used.
+    """
+
+    slot_seeds: dict[str, tuple[int, ...]] = {}
     for region in REGION_ORDER:
         seeds: list[int] = []
         for slot in slots:
             if slot.round != "R64" or slot.region != region:
                 continue
+            row_seeds: list[int] = []
             for team_row, _team_col in slot.team_cells:
                 raw_seed = grid.value(team_row, SEED_COLUMNS[region])
                 try:
-                    seeds.append(int(float(raw_seed)))
+                    seed = int(float(raw_seed))
                 except (TypeError, ValueError):
                     raise BracketError(
                         f"Template mismatch in '{path.name}': missing or invalid "
                         f"{region} seed at row {team_row}."
                     ) from None
+                row_seeds.append(seed)
+                seeds.append(seed)
+            slot_seeds[slot.id] = tuple(row_seeds)
         if sorted(seeds) != list(range(1, 17)):
             raise BracketError(
                 f"Template mismatch in '{path.name}': {region} seeds are "
                 f"{sorted(seeds)}, expected 1-16."
             )
+    return slot_seeds
 
 
 def _detect_team_columns(grid: Grid, slots: Iterable[Slot]) -> dict[str, int]:
@@ -383,19 +406,34 @@ def _apply_team_columns(
     return tuple(adjusted)
 
 
-def _read_team_pairs(grid: Grid, slots: Iterable[Slot]) -> dict[str, tuple[str, ...]]:
+def _read_team_pairs(
+    grid: Grid,
+    slots: Iterable[Slot],
+    seed_rows: dict[str, tuple[int, ...]],
+) -> tuple[dict[str, tuple[str, ...]], dict[str, tuple[int, ...]]]:
     pairs: dict[str, tuple[str, ...]] = {}
+    seed_pairs: dict[str, tuple[int, ...]] = {}
     for slot in slots:
         if slot.round != "R64":
             continue
-        labels = [grid.value(row, col) for row, col in slot.team_cells]
-        teams = tuple(
-            team for label in labels for team in split_team_label(label)
-        )
+        teams: list[str] = []
+        seeds: list[int] = []
+        row_seeds = seed_rows.get(slot.id, ())
+        for index, (row, col) in enumerate(slot.team_cells):
+            label_teams = split_team_label(grid.value(row, col))
+            if not label_teams:
+                continue
+            teams.extend(label_teams)
+            # A play-in label such as "Texas / NC State" shares one printed
+            # seed row, so every team split from that row carries that seed.
+            if index < len(row_seeds):
+                seeds.extend([row_seeds[index]] * len(label_teams))
         if not teams:
             raise BracketError(f"Template mismatch: no teams found for {slot.id}.")
-        pairs[slot.id] = teams
-    return pairs
+        pairs[slot.id] = tuple(teams)
+        if len(seeds) == len(teams):
+            seed_pairs[slot.id] = tuple(seeds)
+    return pairs, seed_pairs
 
 
 def _validate_picks(
@@ -454,9 +492,9 @@ def parse_bracket(path: Path) -> Bracket:
         anchors.south_row,
         anchors.champion_label_row,
     )
-    _read_seeds(grid, slots, path)
+    seed_rows = _read_seeds(grid, slots, path)
     slots = _apply_team_columns(slots, _detect_team_columns(grid, slots))
-    team_pairs = _read_team_pairs(grid, slots)
+    team_pairs, team_seeds = _read_team_pairs(grid, slots, seed_rows)
 
     picks = {
         slot.id: grid.value(slot.row, slot.col).strip()
@@ -484,6 +522,10 @@ def parse_bracket(path: Path) -> Bracket:
         picks=picks,
         warnings=tuple(warnings),
         sheet_name=grid.sheet_name,
+        team_pairs={slot_id: tuple(teams) for slot_id, teams in team_pairs.items()},
+        team_seeds={
+            slot_id: tuple(seeds) for slot_id, seeds in team_seeds.items()
+        },
     )
 
 
@@ -648,6 +690,22 @@ def load_dataset(
             warnings.append(
                 f"'{bracket.source_name}' contains no picks; it will score 0."
             )
+
+    # The actual bracket supplies the Teams sheet. Flag any entrant whose
+    # printed first-round matchup disagrees, rather than silently choosing one.
+    for bracket in entrants:
+        for slot_id, actual_teams in actual.team_pairs.items():
+            other_teams = bracket.team_pairs.get(slot_id)
+            if other_teams is None:
+                continue
+            if tuple(map(normalize_team, other_teams)) != tuple(
+                map(normalize_team, actual_teams)
+            ):
+                warnings.append(
+                    f"{bracket.source_name}: {slot_id} first-round teams "
+                    f"({', '.join(other_teams)}) differ from the actual bracket "
+                    f"({', '.join(actual_teams)}). The actual bracket is used."
+                )
 
     return Dataset(
         actual=actual,

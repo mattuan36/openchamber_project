@@ -285,6 +285,32 @@ CANONICAL_SLOTS: Final[tuple[Slot, ...]] = build_slots(
 )
 SLOTS_BY_ID: Final[dict[str, Slot]] = {slot.id: slot for slot in CANONICAL_SLOTS}
 SLOT_IDS: Final[tuple[str, ...]] = tuple(slot.id for slot in CANONICAL_SLOTS)
+DOWNSTREAM_BY_ID: Final[dict[str, tuple[str, ...]]] = {
+    slot_id: tuple(
+        child.id for child in CANONICAL_SLOTS if slot_id in child.feeders
+    )
+    for slot_id in SLOT_IDS
+}
+
+
+def slot_header(slot_id: str) -> str:
+    """The human-readable Picks column header for one slot."""
+
+    slot = SLOTS_BY_ID[slot_id]
+    if slot.round == "CH":
+        return "Championship"
+    if slot.round == "F4":
+        return f"F4 Game {slot.game}"
+    region = REGION_NAMES[slot.region or ""]
+    return f"{slot.round} {region} {slot.game}"
+
+
+SLOT_HEADERS: Final[dict[str, str]] = {
+    slot_id: slot_header(slot_id) for slot_id in SLOT_IDS
+}
+HEADER_TO_SLOT: Final[dict[str, str]] = {
+    header: slot_id for slot_id, header in SLOT_HEADERS.items()
+}
 
 
 # ---------------------------------------------------------------------------

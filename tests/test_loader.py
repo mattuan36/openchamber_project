@@ -32,6 +32,10 @@ def test_parse_sample_csv_reconstructs_all_63_picks(sample_csv: Path) -> None:
     assert bracket.picks["F4-2"] == "Arizona"
     assert bracket.picks["E8-E1"] == "Duke"
     assert bracket.picks["R64-W1"] == "Arizona"
+    assert bracket.team_seeds["R64-E1"] == (1, 16)
+    assert bracket.team_seeds["R64-W5"] == (6, 11, 11)
+    assert bracket.team_pairs["R64-W5"] == ("BYU", "Texas", "NC State")
+    assert bracket.team_seeds["R64-S1"] == (1, 16, 16)
     assert all("CSV preview" in warning for warning in bracket.warnings)
 
 

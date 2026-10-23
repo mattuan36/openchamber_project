@@ -36,13 +36,22 @@ def _report_dataset(tmp_path: Path, sample_factory):
     return dataset, score_all(dataset.actual, dataset.entrants)
 
 
-def test_report_has_two_sheets_and_63_game_columns(
+def test_report_has_five_sheets_and_63_game_columns(
     tmp_path: Path, sample_factory
 ) -> None:
     dataset, scores = _report_dataset(tmp_path, sample_factory)
     workbook = build_report(dataset, scores)
     try:
-        assert workbook.sheetnames == ["Picks", "Standings"]
+        assert workbook.sheetnames == [
+            "Picks",
+            "Standings",
+            "State",
+            "Teams",
+            "Corrections",
+        ]
+        assert all(
+            workbook[name].sheet_state == "visible" for name in workbook.sheetnames
+        )
         picks = workbook["Picks"]
         assert picks.max_column == 2 + len(SLOT_IDS)
         assert [picks.cell(row=1, column=col).value for col in (1, 2)] == [
@@ -74,7 +83,7 @@ def test_picks_rows_are_actual_then_ranked_entrants(
     try:
         picks = workbook["Picks"]
         assert picks["A2"].value == "2026_results.csv"
-        assert "OFFICIAL" in picks["B2"].value
+        assert picks["B2"].value == "ACTUAL — OFFICIAL"
         assert picks["B3"].value == "MATT"
         assert picks["B4"].value == "CHRIS"
         assert picks["C2"].fill.fgColor.rgb == "001F4E78"
@@ -192,7 +201,13 @@ def test_write_report_is_atomic_and_preserves_inputs(
 
     workbook = load_workbook(output, read_only=True)
     try:
-        assert workbook.sheetnames == ["Picks", "Standings"]
+        assert workbook.sheetnames == [
+            "Picks",
+            "Standings",
+            "State",
+            "Teams",
+            "Corrections",
+        ]
     finally:
         workbook.close()
 

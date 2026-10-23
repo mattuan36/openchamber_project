@@ -137,6 +137,8 @@ Championship.
 | Team disagreement warning | An entrant with a different first-round matchup emits a warning and does not override the actual bracket |
 | Fresh-session continue | An existing report loads automatically, with matching picks and scores |
 | Save As sync | Saving to a new report path updates the active report and the editable Setup path |
+| Top-bar shell | Setup, Results, Leaderboard, Compare, and Save/Load switch from the top segmented navigation; the sidebar is absent; report status and autosave live in the top-bar popover |
+| Setup hierarchy | Folder scan, saved report, rebuild, and advanced paths render as one page; rebuild and advanced sections are collapsed when a saved report is open |
 | Streamlit AppTest | Demo load, actual edit, winner toggle, seeded board and mirrored paths, leaderboard, compare, save, reload, Save As, and fresh-session continue all run without app exceptions |
 | Test suite | 70 tests passed |
 

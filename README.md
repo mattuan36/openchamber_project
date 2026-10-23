@@ -36,20 +36,22 @@ The bundled sample data contains:
 
 ## Streamlit workflow
 
-Run `streamlit run app.py`. Setup defaults to `sample_data/demo`; any local
-folder path can be entered. The sidebar navigates between **Setup**,
-**Actual Results**, **Leaderboard**, **Compare**, and **Save/Load**.
+Run `streamlit run app.py`. The top bar navigates between **Setup**,
+**Results**, **Leaderboard**, **Compare**, and **Save/Load**, and shows the open
+report, last save, and autosave settings. Setup defaults to `sample_data/demo`;
+any local folder path can be entered.
 
 1. **Setup** scans the folder non-recursively for `.xlsx`, `.xlsm`, and `.csv`.
    Excel owner files (`~$...`) and generated reports are ignored as raw
    brackets. The actual-results file is auto-selected by `results` in its
-   filename, with a manual override.
+   filename, with a manual override inside the collapsed rebuild section.
 2. If the folder already contains a saved report, a fresh session opens it
-   automatically under **Continue saved report**. **Rebuild from original
-   bracket files** is also offered and explicitly discards saved edits and
-   corrections.
-3. If no report exists, **Create report from brackets** builds the initial
-   report and writes it to the report path.
+   automatically. The saved-report card keeps the current report, entrant,
+   pending, and correction counts together; **Create or rebuild from bracket
+   files** is collapsed and explicitly discards saved edits and corrections.
+3. If no report exists, the create section opens automatically and **Create
+   report from brackets** builds the initial report at the configured path.
+   The folder, report path, schema, and rules details live in **Advanced**.
 4. **Actual Results** is a three-panel bracket board for editing actual winners
    only: East and South read inward from the left, West and Midwest are mirrored
    inward from the right, and the Final Four and Championship sit in the center.
@@ -80,8 +82,9 @@ folder path can be entered. The sidebar navigates between **Setup**,
 - Writes are atomic through a temporary file in the destination folder.
 - If Excel has locked the report, the app shows a clear message and keeps the
   unsaved state in memory. Close the workbook in Excel and save again.
-- Autosave after each actual-result change is on by default and can be turned
-  off in the sidebar. A visible **Saved at** status is shown.
+- Autosave after each actual-result change is on by default and is controlled
+  from the top-bar report status popover. The same popover shows the open
+  report, last save, and any save error.
 - After creation, the report is the source of truth. Original bracket files are
   used only for bootstrap or an explicit rebuild.
 - Older two-sheet reports still open for viewing and scoring, but they contain no

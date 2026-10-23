@@ -57,28 +57,134 @@ load_dotenv(BASE_DIR / ".env", override=False)
 APP_NAME = os.getenv("APP_NAME", "2026 Bracket Scorekeeper")
 DEFAULT_DATA_FOLDER = BASE_DIR / "sample_data" / "demo"
 PENDING_LABEL = "— Pending —"
+PAGE_LABELS: dict[str, str] = {
+    "Setup": "Setup",
+    "Actual Results": "Results",
+    "Leaderboard": "Leaderboard",
+    "Compare": "Compare",
+    "Save/Load": "Save/Load",
+}
+NAV_OPTIONS = list(PAGE_LABELS)
 
 st.set_page_config(
     page_title=APP_NAME,
     page_icon="🏀",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
     <style>
-      .block-container { padding-top: 1.8rem; padding-bottom: 3rem;
+      :root {
+        --app-surface: rgba(128,128,128,.055);
+        --app-surface-strong: rgba(128,128,128,.09);
+        --app-border: rgba(128,128,128,.18);
+        --app-border-strong: rgba(128,128,128,.28);
+        --app-radius: .9rem;
+      }
+      .block-container { padding-top: 1.35rem; padding-bottom: 3rem;
                          padding-left: 2rem; padding-right: 2rem;
                          max-width: 1500px; }
-      .app-kicker { letter-spacing: .14em; text-transform: uppercase;
-                    font-size: .72rem; color: var(--text-color); opacity: .6; }
-      .app-title { font-size: 2.0rem; font-weight: 700; letter-spacing: -.02em;
-                   margin: .1rem 0 .25rem; }
-      .app-subtitle { opacity: .72; margin-bottom: 1.1rem; }
-      div[data-testid="stMetric"] { border: 1px solid rgba(128,128,128,.22);
-                                    border-radius: .75rem; padding: .7rem .9rem; }
-      div[data-testid="stMetricValue"] { font-size: 1.4rem; }
+
+      /* App shell */
+      div:has(> [class*="st-key-app_topbar"]) {
+        position: sticky !important;
+        top: 3.35rem !important;
+        z-index: 999;
+      }
+      [class*="st-key-app_topbar"] {
+        position: static !important;
+        z-index: 999;
+        padding: .7rem .85rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--app-border);
+        border-radius: var(--app-radius);
+        background: var(--background-color, Canvas);
+        background: color-mix(in srgb, var(--background-color, Canvas) 90%, transparent);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.055);
+      }
+      .app-brand { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+      .app-brand-mark { display: grid; place-items: center; flex: 0 0 auto;
+                        width: 2.05rem; height: 2.05rem; border-radius: .62rem;
+                        background: color-mix(in srgb, var(--primary-color, #f97316) 14%, transparent);
+                        font-size: 1.12rem; }
+      .app-brand-copy { min-width: 0; }
+      .app-brand-name { display: block; font-size: .96rem; font-weight: 700;
+                        letter-spacing: -.015em; line-height: 1.2;
+                        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .app-brand-meta { display: block; margin-top: .13rem; font-size: .66rem;
+                        letter-spacing: .085em; text-transform: uppercase;
+                        opacity: .52; white-space: nowrap; }
+      [class*="st-key-nav"] { min-width: 0; }
+      [class*="st-key-topbar_status"] button { border-radius: .62rem; font-size: .8rem; }
+
+      /* Page hierarchy */
+      .app-page-head { margin: .05rem 0 1rem; }
+      .app-page-kicker { margin-bottom: .28rem; font-size: .68rem; font-weight: 700;
+                         letter-spacing: .13em; text-transform: uppercase; opacity: .52; }
+      .app-page-title { margin: 0; font-size: clamp(1.65rem, 2.8vw, 2.05rem);
+                        font-weight: 720; letter-spacing: -.03em; line-height: 1.15; }
+      .app-page-subtitle { margin: .32rem 0 0; max-width: 75ch; font-size: .88rem;
+                           line-height: 1.5; opacity: .66; }
+      .section-head { margin: 1.35rem 0 .55rem; }
+      .section-head .section-title { margin: 0; font-size: 1.02rem; font-weight: 680;
+                         letter-spacing: -.015em; }
+      .section-head p { margin: .2rem 0 0; max-width: 78ch; font-size: .8rem;
+                        line-height: 1.45; opacity: .6; }
+
+      /* Cards and compact metadata */
+      [class*="st-key-card_"] {
+        margin-bottom: .85rem;
+        padding: .85rem 1rem .8rem;
+        border: 1px solid var(--app-border);
+        border-radius: var(--app-radius);
+        background: var(--app-surface);
+        gap: .55rem !important;
+      }
+      [class*="st-key-actual_toolbar"] {
+        margin: .55rem 0 1rem;
+        padding: .55rem .7rem .5rem;
+        border: 1px solid var(--app-border);
+        border-radius: .72rem;
+        background: var(--app-surface);
+        gap: .35rem !important;
+      }
+      .card-head { display: flex; align-items: flex-start; justify-content: space-between;
+                   gap: .75rem; margin-bottom: .12rem; }
+      .card-title { margin: 0; font-size: 1rem; font-weight: 680;
+                    letter-spacing: -.015em; line-height: 1.3; }
+      .card-desc { margin: .18rem 0 0; max-width: 76ch; font-size: .8rem;
+                   line-height: 1.45; opacity: .62; }
+      .app-badge { display: inline-flex; align-items: center; gap: .3rem;
+                   flex: 0 0 auto; padding: .16rem .48rem; border-radius: 999px;
+                   border: 1px solid var(--app-border-strong); font-size: .68rem;
+                   font-weight: 650; letter-spacing: .025em; line-height: 1.35;
+                   white-space: nowrap; }
+      .app-badge-success { background: rgba(34,197,94,.13);
+                           border-color: rgba(34,197,94,.38); }
+      .app-badge-warning { background: rgba(245,158,11,.13);
+                           border-color: rgba(245,158,11,.4); }
+      .app-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem;
+                  margin: .05rem 0 .1rem; font-size: .78rem; opacity: .72; }
+      .app-meta .sep { opacity: .32; }
+      .app-meta strong { font-weight: 650; opacity: 1; }
+      .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+                     gap: .5rem; margin: .15rem 0 .35rem; }
+      .detail-item { padding: .5rem .62rem; border-radius: .55rem;
+                     background: var(--app-surface-strong); }
+      .detail-item .label { display: block; font-size: .64rem; font-weight: 650;
+                            letter-spacing: .07em; text-transform: uppercase; opacity: .52; }
+      .detail-item .value { display: block; margin-top: .16rem; font-size: .86rem;
+                            font-weight: 650; overflow-wrap: anywhere; }
+
+      div[data-testid="stMetric"] { border: 1px solid var(--app-border);
+                                    border-radius: .72rem; padding: .55rem .75rem;
+                                    background: var(--app-surface); }
+      div[data-testid="stMetricLabel"] { font-size: .76rem; opacity: .66; }
+      div[data-testid="stMetricValue"] { font-size: 1.28rem; }
+      div[data-testid="stExpander"] { border-color: var(--app-border); border-radius: .75rem; }
       footer { visibility: hidden; }
       .scorecard { display: flex; flex-wrap: wrap; gap: .35rem; margin: .15rem 0 .85rem; }
       .score-cell { flex: 1 1 5.6rem; min-width: 5.2rem; border-radius: .45rem;
@@ -199,6 +305,15 @@ st.markdown(
           width: 100% !important;
           flex: 1 1 100% !important;
         }
+        [class*="st-key-app_topbar"] {
+          position: static;
+          padding: .6rem .7rem;
+        }
+        div:has(> [class*="st-key-app_topbar"]) {
+          position: static !important;
+        }
+        .app-brand-meta { display: none; }
+        .block-container { padding-left: 1rem; padding-right: 1rem; }
       }
     </style>
     """,
@@ -215,7 +330,7 @@ _STATE_DEFAULTS: dict[str, object] = {
     "scan_folder_for": None,
     "actual_choice": None,
     "saved_report_choice": None,
-    "start_mode": "Continue saved report",
+    "nav": "Setup",
     "report_path": str(DEFAULT_DATA_FOLDER / "bracket_report.xlsx"),
     "data_folder": str(DEFAULT_DATA_FOLDER),
     "saved_picks": None,
@@ -226,6 +341,7 @@ _STATE_DEFAULTS: dict[str, object] = {
     "autosave": True,
     "compare_index": 0,
     "confirm_rebuild": False,
+    "setup_confirm_context": None,
     "confirm_reload": False,
     "save_path": "",
     "pending_save_path": None,
@@ -242,6 +358,147 @@ for _key, _value in _STATE_DEFAULTS.items():
 
 def _workspace() -> ReportSession | None:
     return st.session_state.get("workspace")
+
+
+def _plural(count: int, singular: str, plural: str | None = None) -> str:
+    return singular if count == 1 else (plural or f"{singular}s")
+
+
+def _page_header(title: str, subtitle: str, *, eyebrow: str | None = None) -> None:
+    kicker = (
+        f'<div class="app-page-kicker">{escape(eyebrow)}</div>' if eyebrow else ""
+    )
+    st.markdown(
+        f'<div class="app-page-head">{kicker}'
+        f'<h1 class="app-page-title">{escape(title)}</h1>'
+        f'<p class="app-page-subtitle">{escape(subtitle)}</p></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _section_title(title: str, description: str | None = None) -> None:
+    desc = (
+        f"<p>{escape(description)}</p>" if description else ""
+    )
+    st.markdown(
+        f'<div class="section-head"><div class="section-title" role="heading" '
+        f'aria-level="2">{escape(title)}</div>{desc}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _card_header(
+    title: str,
+    description: str | None = None,
+    *,
+    badge: str | None = None,
+    tone: str = "neutral",
+) -> None:
+    desc = f'<p class="card-desc">{escape(description)}</p>' if description else ""
+    chip = (
+        f'<span class="app-badge app-badge-{escape(tone)}">{escape(badge)}</span>'
+        if badge
+        else ""
+    )
+    st.markdown(
+        f'<div class="card-head"><div><div class="card-title" role="heading" '
+        f'aria-level="2">{escape(title)}</div>'
+        f"{desc}</div>{chip}</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _short_time(value: object) -> str:
+    text = str(value or "").strip()
+    return text.split(" ")[-1][:5] if text else ""
+
+
+def _render_topbar_status() -> None:
+    workspace = _workspace()
+    save_error = st.session_state.get("save_error")
+    autosave = bool(st.session_state.get("autosave", True))
+    saved_at = st.session_state.get("last_saved_at")
+    dirty = bool(
+        workspace is not None
+        and st.session_state.get("saved_picks") is not None
+        and workspace.actual.picks != st.session_state.get("saved_picks")
+    )
+    if workspace is None:
+        label = "No report"
+    elif save_error:
+        label = "Save failed"
+    elif dirty and not autosave:
+        label = "Unsaved changes"
+    elif saved_at:
+        label = f"Saved {_short_time(saved_at)}"
+    else:
+        label = "Report open"
+
+    with st.popover(
+        label,
+        key="topbar_status",
+        icon=":material/tune:",
+        width="stretch",
+        help="Workspace status, autosave, and app details.",
+    ):
+        if workspace is None:
+            st.caption("No report is open. Choose a folder on Setup to begin.")
+        else:
+            st.markdown(
+                f'<div class="detail-item"><span class="label">Open report</span>'
+                f'<span class="value">{escape(workspace.report_path.name)}</span></div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(str(workspace.report_path))
+            if save_error:
+                st.error(str(save_error), icon="💾")
+            elif saved_at:
+                st.caption(f"Last saved {saved_at}")
+            else:
+                st.caption("Not saved yet.")
+            if dirty and not autosave:
+                st.warning("Changes are waiting to be saved.", icon="💾")
+        st.toggle(
+            "Autosave after result changes",
+            key="autosave",
+            help="When on, every actual-result change writes the report immediately.",
+        )
+        if not st.session_state.get("autosave", True):
+            st.caption("Autosave is off; use Save/Load to write changes.")
+        st.caption(f"App {APP_VERSION} · {REPORT_FORMAT_NAME}")
+
+
+def _render_app_shell() -> str:
+    with st.container(key="app_topbar"):
+        brand_col, nav_col, status_col = st.columns(
+            [2.1, 4.3, 1.6], gap="small", vertical_alignment="center"
+        )
+        with brand_col:
+            st.markdown(
+                f'<div class="app-brand"><span class="app-brand-mark">🏀</span>'
+                f'<span class="app-brand-copy"><span class="app-brand-name">'
+                f'{escape(APP_NAME)}</span><span class="app-brand-meta">'
+                "2026 NCAA men’s tournament</span></span></div>",
+                unsafe_allow_html=True,
+            )
+        with nav_col:
+            selected = st.segmented_control(
+                "Page",
+                NAV_OPTIONS,
+                format_func=lambda option: PAGE_LABELS[option],
+                key="nav",
+                label_visibility="collapsed",
+                width="stretch",
+                wrap=True,
+            )
+        with status_col:
+            _render_topbar_status()
+
+    page = selected or st.session_state.get("nav") or "Setup"
+    if page not in NAV_OPTIONS:
+        page = "Setup"
+        st.session_state["nav"] = page
+    return page
 
 
 def _clear_actual_widgets() -> None:
@@ -404,30 +661,34 @@ def _selected_actual_file(scan: FolderScan) -> Path | None:
     return next(path for path in scan.raw_files if path.name == selected)
 
 
-def _render_warnings(workspace: ReportSession) -> None:
+def _render_validation_status(workspace: ReportSession, *, expanded: bool = False) -> None:
     warnings = _all_warnings(workspace)
     if not warnings:
-        st.success("Validation passed with no warnings.", icon="✅")
+        st.markdown(
+            '<span class="app-badge app-badge-success">Validated · no warnings</span>',
+            unsafe_allow_html=True,
+        )
         return
-    with st.expander(f"Validation warnings ({len(warnings)})", expanded=True):
+    with st.expander(f"Validation warnings ({len(warnings)})", expanded=expanded):
         for message in warnings:
             st.warning(message, icon="⚠️")
 
 
-def _render_setup() -> None:
-    st.header("Setup")
-    st.caption(
-        "Choose a local folder containing bracket files. Reports are written "
-        "to the same folder by default and become the saved state."
-    )
+def _render_save_feedback() -> None:
+    if st.session_state.get("save_error"):
+        st.error(st.session_state["save_error"], icon="💾")
+        return
+    notice = st.session_state.pop("save_notice", None)
+    if notice:
+        st.success(str(notice), icon="💾")
 
-    folder_text = st.text_input(
-        "Data folder",
-        key="data_folder",
-        persist_state="session",
-        help="A local folder. It is scanned non-recursively for .xlsx, .xlsm, and .csv.",
+
+def _render_setup() -> None:
+    _page_header(
+        "Setup",
+        "Choose a workspace, open a saved report, or build one from the original "
+        "bracket files.",
     )
-    scan = _folder_scan(folder_text)
 
     # Keep the editable Setup path in step with saves, Save As, and reports
     # opened from another page.
@@ -436,35 +697,51 @@ def _render_setup() -> None:
         st.session_state["report_path"] = path_sync
         st.session_state["report_path_sync"] = None
 
-    report_text = st.text_input(
-        "Report path",
-        key="report_path",
-        persist_state="session",
-        help="The saved report. Names containing 'results' are rejected.",
-    )
-
-    left, right = st.columns([1, 1])
-    with left:
-        if st.button("Rescan folder", key="rescan_folder", width="stretch"):
-            # Refresh the scan without discarding the typed report path or
-            # the selected actual-results file.
-            st.session_state["scan"] = None
-            st.rerun()
-    with right:
-        st.caption(
-            "Report filenames may not contain 'results'. Raw bracket files are "
-            "never overwritten."
+    with st.container(key="card_workspace"):
+        _card_header(
+            "Workspace",
+            "Reports are discovered non-recursively and become the saved state.",
         )
+        folder_col, rescan_col = st.columns(
+            [4.5, 1], gap="small", vertical_alignment="bottom"
+        )
+        with folder_col:
+            folder_text = st.text_input(
+                "Folder",
+                key="data_folder",
+                persist_state="session",
+                help=(
+                    "A local folder. It is scanned non-recursively for .xlsx, "
+                    ".xlsm, and .csv."
+                ),
+            )
+        with rescan_col:
+            if st.button("Rescan", key="rescan_folder", width="stretch"):
+                # Refresh the scan without discarding the typed report path or
+                # the selected actual-results file.
+                st.session_state["scan"] = None
+                st.rerun()
 
-    if scan is None:
-        st.error(st.session_state.get("scan_error") or "The folder could not be scanned.")
-        return
+        scan = _folder_scan(folder_text)
+        if scan is None:
+            st.error(
+                st.session_state.get("scan_error") or "The folder could not be scanned."
+            )
+            return
 
-    metrics = st.columns(4)
-    metrics[0].metric("Raw bracket files", len(scan.raw_files))
-    metrics[1].metric("Saved reports", len(scan.reports))
-    metrics[2].metric("Actual candidates", len(scan.actual_candidates))
-    metrics[3].metric("Report", Path(report_text).name or "—")
+        summary = [
+            f"<strong>{len(scan.raw_files)}</strong> bracket "
+            f"{_plural(len(scan.raw_files), 'file')}",
+            f"<strong>{len(scan.reports)}</strong> saved "
+            f"{_plural(len(scan.reports), 'report')}",
+            f"<strong>{len(scan.actual_candidates)}</strong> results "
+            f"{_plural(len(scan.actual_candidates), 'candidate')}",
+        ]
+        summary_html = '<span class="sep">·</span>'.join(summary)
+        st.markdown(
+            f'<div class="app-meta">{summary_html}</div>',
+            unsafe_allow_html=True,
+        )
 
     saved_workspace = _workspace()
     if scan.reports:
@@ -476,32 +753,8 @@ def _render_setup() -> None:
                 else scan.reports[0]
             )
             st.session_state["saved_report_choice"] = default_report.name
-        st.radio(
-            "Start from",
-            ["Continue saved report", "Rebuild from original bracket files"],
-            key="start_mode",
-            horizontal=True,
-        )
-    else:
-        st.info(
-            "No saved report found in this folder. Create one from the original "
-            "bracket files below.",
-            icon="📄",
-        )
-
-    mode = st.session_state.get("start_mode", "Continue saved report")
-    if scan.reports and mode == "Continue saved report":
-        report_name = st.selectbox(
-            "Saved report",
-            [path.name for path in scan.reports],
-            key="saved_report_choice",
-        )
+        report_name = st.session_state["saved_report_choice"]
         report_file = next(path for path in scan.reports if path.name == report_name)
-        st.caption(f"Opening: `{report_file}`")
-        report_is_open = (
-            saved_workspace is not None
-            and saved_workspace.report_path.resolve() == report_file.resolve()
-        )
 
         # Continuing the saved report is the default. On a fresh session, load
         # it without an extra click; the rebuild option below still replaces it.
@@ -515,110 +768,207 @@ def _render_setup() -> None:
             except ReportError as exc:
                 st.error(str(exc))
             else:
-                _install_workspace(workspace, notice="Saved report loaded.")
+                _install_workspace(workspace)
                 st.rerun()
 
-        label = "Reload saved report" if report_is_open else "Open saved report"
-        if st.button(label, key="open_saved_report", type="primary"):
-            try:
-                workspace = load_report(report_file)
-            except ReportError as exc:
-                st.error(str(exc))
-            else:
-                _install_workspace(workspace, notice="Saved report loaded.")
-                st.rerun()
+        saved_workspace = _workspace()
+        report_is_open = bool(
+            saved_workspace is not None
+            and saved_workspace.report_path.resolve() == report_file.resolve()
+        )
+        warnings = (
+            _all_warnings(saved_workspace)
+            if report_is_open and saved_workspace is not None
+            else []
+        )
+        if report_is_open and warnings:
+            badge, tone = f"{len(warnings)} warnings", "warning"
+        elif report_is_open:
+            badge, tone = "Open", "success"
+        else:
+            badge, tone = "Available", "neutral"
+
+        with st.container(key="card_saved_report"):
+            _card_header(
+                "Saved report",
+                "Open the report that holds the current picks, actual results, "
+                "and corrections.",
+                badge=badge,
+                tone=tone,
+            )
+            report_name = st.selectbox(
+                "Report",
+                report_names,
+                key="saved_report_choice",
+            )
+            report_file = next(
+                path for path in scan.reports if path.name == report_name
+            )
+            report_is_open = bool(
+                saved_workspace is not None
+                and saved_workspace.report_path.resolve() == report_file.resolve()
+            )
+            if report_is_open and saved_workspace is not None:
+                st.markdown(
+                    f'<div class="app-meta"><strong>{len(saved_workspace.entrants)}'
+                    f'</strong> entrants<span class="sep">·</span>'
+                    f'<strong>{saved_workspace.pending}</strong> pending'
+                    f'<span class="sep">·</span><strong>'
+                    f'{len(saved_workspace.corrections)}</strong> corrections</div>',
+                    unsafe_allow_html=True,
+                )
+            st.caption(str(report_file))
+            label = "Reload report" if report_is_open else "Open report"
+            if st.button(
+                label,
+                key="open_saved_report",
+                type="secondary" if report_is_open else "primary",
+                width="stretch",
+            ):
+                try:
+                    workspace = load_report(report_file)
+                except ReportError as exc:
+                    st.error(str(exc))
+                else:
+                    _install_workspace(workspace)
+                    st.rerun()
+            if report_is_open and saved_workspace is not None:
+                _render_validation_status(saved_workspace)
+            elif saved_workspace is not None:
+                st.caption(
+                    f"Currently editing `{saved_workspace.report_path}` from "
+                    "another folder."
+                )
     else:
+        with st.container(key="card_saved_report"):
+            _card_header(
+                "Saved report",
+                "This folder has no saved report yet. Use the rebuild section below "
+                "to create one.",
+                badge="None",
+            )
+            if saved_workspace is not None:
+                st.caption(
+                    f"Currently editing `{saved_workspace.report_path}` from another "
+                    "folder."
+                )
+
+    with st.expander(
+        "Create or rebuild from bracket files", expanded=not scan.reports
+    ):
+        st.caption(
+            "Building a report writes the five-sheet workbook and makes it the "
+            "saved state. Rebuilding discards saved edits and corrections."
+        )
         if not scan.raw_files:
             st.warning(
                 "This folder has no raw bracket files, so a report cannot be "
                 "rebuilt here. Continue the saved report instead.",
                 icon="📄",
             )
-            return
-        if not scan.actual_candidates:
-            st.warning(
-                "No raw filename contains 'results'. Choose the actual-results "
-                "file explicitly before creating the report.",
-                icon="📄",
+        else:
+            confirm_context = (
+                str(scan.folder),
+                tuple(path.name for path in scan.reports),
             )
-        elif len(scan.actual_candidates) > 1:
-            st.warning(
-                "More than one raw filename contains 'results'. Choose the "
-                "official actual-results file explicitly.",
-                icon="📄",
-            )
-
-        actual_file = _selected_actual_file(scan)
-        actual_name = st.selectbox(
-            "Actual-results file",
-            [path.name for path in scan.raw_files],
-            key="actual_choice",
-            help=(
-                "Auto-selected by 'results' in the filename. Override it if the "
-                "official results use a different name."
-            ),
-        )
-        actual_file = next(path for path in scan.raw_files if path.name == actual_name)
-        st.caption(
-            f"Entrants will be built from the other {len(scan.raw_files) - 1} "
-            f"raw file(s). Actual: `{actual_file.name}`"
-        )
-        confirm = st.checkbox(
-            "Replace any saved edits in the report at this path",
-            key="setup_confirm_rebuild",
-            value=not scan.reports,
-        )
-        if st.button(
-            "Rebuild from original bracket files"
-            if scan.reports
-            else "Create report from brackets",
-            key="create_report",
-            type="primary",
-            disabled=not confirm,
-        ):
-            try:
-                workspace = build_from_raw(
-                    scan.folder,
-                    actual_path=actual_file,
-                    report_path=Path(report_text),
+            if st.session_state.get("setup_confirm_context") != confirm_context:
+                st.session_state["setup_confirm_rebuild"] = not scan.reports
+                st.session_state["setup_confirm_context"] = confirm_context
+            if not scan.actual_candidates:
+                st.warning(
+                    "No raw filename contains 'results'. Choose the actual-results "
+                    "file explicitly before creating the report.",
+                    icon="📄",
                 )
-            except (BracketError, ReportError, OSError) as exc:
-                st.error(str(exc))
-            else:
-                _install_workspace(workspace)
-                _save_workspace(workspace, label="Report created")
-                st.rerun()
+            elif len(scan.actual_candidates) > 1:
+                st.warning(
+                    "More than one raw filename contains 'results'. Choose the "
+                    "official actual-results file explicitly.",
+                    icon="📄",
+                )
 
-    workspace = _workspace()
-    if workspace is not None:
-        st.divider()
-        st.subheader("Current report")
-        cards = st.columns(4)
-        cards[0].metric("Entrants", len(workspace.entrants))
-        cards[1].metric("Pending games", workspace.pending)
-        cards[2].metric("Corrections", len(workspace.corrections))
-        cards[3].metric(
-            "Source folder",
-            Path(workspace.source_folder or workspace.report_path.parent).name,
+            actual_file = _selected_actual_file(scan)
+            actual_name = st.selectbox(
+                "Actual-results file",
+                [path.name for path in scan.raw_files],
+                key="actual_choice",
+                help=(
+                    "Auto-selected by 'results' in the filename. Override it if the "
+                    "official results use a different name."
+                ),
+            )
+            actual_file = next(
+                path for path in scan.raw_files if path.name == actual_name
+            )
+            st.caption(
+                f"Entrants will be built from the other {len(scan.raw_files) - 1} "
+                f"raw file(s). Actual: `{actual_file.name}`"
+            )
+            confirm = st.checkbox(
+                "Replace any saved edits in the report at this path",
+                key="setup_confirm_rebuild",
+            )
+            report_text = str(st.session_state.get("report_path", "")).strip()
+            report_target = Path(report_text) if report_text else None
+            st.caption(
+                f"Report destination: `{report_target}`"
+                if report_target is not None
+                else "Set a report path in Advanced before creating a report."
+            )
+            if st.button(
+                "Rebuild from original bracket files"
+                if scan.reports
+                else "Create report from brackets",
+                key="create_report",
+                type="primary",
+                disabled=not confirm or report_target is None,
+            ):
+                try:
+                    workspace = build_from_raw(
+                        scan.folder,
+                        actual_path=actual_file,
+                        report_path=report_target,
+                    )
+                except (BracketError, ReportError, OSError) as exc:
+                    st.error(str(exc))
+                else:
+                    _install_workspace(workspace)
+                    _save_workspace(workspace, label="Report created")
+                    st.rerun()
+
+    with st.expander("Advanced: paths and report details", expanded=False):
+        st.text_input(
+            "Report path",
+            key="report_path",
+            persist_state="session",
+            help="The saved report. Names containing 'results' are rejected.",
         )
-        st.markdown(
-            f'<p class="saved-path">{escape(str(workspace.report_path))}</p>',
-            unsafe_allow_html=True,
-        )
-        state_cards = st.columns(3)
-        state_cards[0].metric(
-            "Schema", workspace.state.get("Report schema version", "—")
-        )
-        state_cards[1].metric(
-            "Rules", workspace.state.get("Scoring rules version", "—")
-        )
-        state_cards[2].metric("App", workspace.state.get("App version", APP_VERSION))
-        _render_warnings(workspace)
-    elif saved_workspace is not None:
         st.caption(
-            f"Currently editing `{saved_workspace.report_path}` from another folder. "
-            "Create or open a report here to switch."
+            "Report filenames may not contain 'results'. Raw bracket files are "
+            "never overwritten."
         )
+        workspace = _workspace()
+        if workspace is None:
+            st.caption("No report is open. The report path is used when creating one.")
+        else:
+            details = [
+                ("Schema", workspace.state.get("Report schema version", "—")),
+                ("Rules", workspace.state.get("Scoring rules version", "—")),
+                ("App", workspace.state.get("App version", APP_VERSION)),
+                (
+                    "Source folder",
+                    Path(
+                        workspace.source_folder or workspace.report_path.parent
+                    ).name,
+                ),
+            ]
+            items = "".join(
+                f'<div class="detail-item"><span class="label">{escape(label)}</span>'
+                f'<span class="value">{escape(str(value))}</span></div>'
+                for label, value in details
+            )
+            st.markdown(f'<div class="detail-grid">{items}</div>', unsafe_allow_html=True)
+            _render_validation_status(workspace, expanded=False)
 
 
 # ---------------------------------------------------------------------------
@@ -778,17 +1128,16 @@ def _round_groups(round_name: str) -> list[tuple[str | None, list[str]]]:
 
 
 def _render_actual_results() -> None:
+    _page_header(
+        "Actual Results",
+        "Click a team to set the actual winner. The winner is highlighted; click "
+        "it again to return the game to pending. Pending games award no points.",
+    )
     workspace = _workspace()
     if workspace is None:
         st.info("Load or create a report on the Setup page first.", icon="🏀")
         return
 
-    st.header("Actual Results")
-    st.caption(
-        "Click a team to set the actual winner for that game. The winner is "
-        "highlighted; click it again to return the game to pending. A pending "
-        "game awards no points and is excluded from accuracy."
-    )
     if not workspace.teams_complete:
         st.warning(
             "This legacy report has no first-round team data. It is read-only; "
@@ -803,68 +1152,61 @@ def _render_actual_results() -> None:
         )
 
     filled = len(SLOT_IDS) - workspace.pending
-    cards = st.columns(4)
+    cards = st.columns(3)
     cards[0].metric("Actual source", workspace.actual.source_name)
     cards[1].metric("Decided games", f"{filled} / {len(SLOT_IDS)}")
     cards[2].metric("Pending games", workspace.pending)
-    cards[3].metric(
-        "Autosave", "On" if st.session_state.get("autosave", True) else "Off"
-    )
-    if st.session_state.get("save_error"):
-        st.error(st.session_state["save_error"], icon="💾")
-    elif st.session_state.get("save_notice"):
-        st.success(st.session_state["save_notice"], icon="💾")
-    if st.session_state.get("last_saved_at"):
-        st.caption(f"Saved at: {st.session_state['last_saved_at']}")
+    _render_save_feedback()
 
-    actions = st.columns([1, 1, 2])
-    undo_stack = st.session_state.get("undo_stack", [])
-    with actions[0]:
-        if st.button(
-            "Undo last change",
-            key="undo_actual",
-            disabled=not undo_stack,
-            width="stretch",
-        ):
-            entry = undo_stack.pop()
-            workspace = replace(
-                workspace,
-                actual=replace(workspace.actual, picks=entry["picks"]),
-                _dataset=None,
+    with st.container(key="actual_toolbar"):
+        actions = st.columns([1, 1, 2], vertical_alignment="center")
+        undo_stack = st.session_state.get("undo_stack", [])
+        with actions[0]:
+            if st.button(
+                "Undo last change",
+                key="undo_actual",
+                disabled=not undo_stack,
+                width="stretch",
+            ):
+                entry = undo_stack.pop()
+                workspace = replace(
+                    workspace,
+                    actual=replace(workspace.actual, picks=entry["picks"]),
+                    _dataset=None,
+                )
+                st.session_state["workspace"] = workspace
+                st.session_state["undo_stack"] = undo_stack
+                _clear_actual_widgets()
+                st.session_state["save_notice"] = f"Undid {entry['label']}"
+                if st.session_state.get("autosave", True):
+                    _save_workspace(workspace, label="Autosaved after undo")
+                st.rerun()
+        with actions[1]:
+            saved_picks = st.session_state.get("saved_picks")
+            reset_disabled = saved_picks is None or saved_picks == workspace.actual.picks
+            if st.button(
+                "Reset to saved",
+                key="reset_actual",
+                disabled=reset_disabled,
+                width="stretch",
+            ):
+                _push_undo(workspace, "reset to saved")
+                workspace = replace(
+                    workspace,
+                    actual=replace(workspace.actual, picks=dict(saved_picks)),
+                    _dataset=None,
+                )
+                st.session_state["workspace"] = workspace
+                _clear_actual_widgets()
+                st.session_state["save_notice"] = "Restored the saved actual results."
+                if st.session_state.get("autosave", True):
+                    _save_workspace(workspace, label="Autosaved after reset")
+                st.rerun()
+        with actions[2]:
+            st.caption(
+                "Changing a feeder winner clears downstream picks that are no longer "
+                "possible."
             )
-            st.session_state["workspace"] = workspace
-            st.session_state["undo_stack"] = undo_stack
-            _clear_actual_widgets()
-            st.session_state["save_notice"] = f"Undid {entry['label']}"
-            if st.session_state.get("autosave", True):
-                _save_workspace(workspace, label="Autosaved after undo")
-            st.rerun()
-    with actions[1]:
-        saved_picks = st.session_state.get("saved_picks")
-        reset_disabled = saved_picks is None or saved_picks == workspace.actual.picks
-        if st.button(
-            "Reset to saved",
-            key="reset_actual",
-            disabled=reset_disabled,
-            width="stretch",
-        ):
-            _push_undo(workspace, "reset to saved")
-            workspace = replace(
-                workspace,
-                actual=replace(workspace.actual, picks=dict(saved_picks)),
-                _dataset=None,
-            )
-            st.session_state["workspace"] = workspace
-            _clear_actual_widgets()
-            st.session_state["save_notice"] = "Restored the saved actual results."
-            if st.session_state.get("autosave", True):
-                _save_workspace(workspace, label="Autosaved after reset")
-            st.rerun()
-    with actions[2]:
-        st.caption(
-            "Changing a feeder winner clears downstream picks that are no longer "
-            "possible."
-        )
 
     seed_map = workspace.team_seed_map
     with st.container(key="actual_bracket"):
@@ -907,13 +1249,16 @@ def _scores_frame(scores) -> pd.DataFrame:
 
 
 def _render_leaderboard() -> None:
+    _page_header(
+        "Leaderboard",
+        "Ranked standings, round-by-round points, and the championship tie-break.",
+    )
     workspace = _workspace()
     if workspace is None:
         st.info("Load or create a report on the Setup page first.", icon="🏀")
         return
 
     scores = workspace.scores
-    st.header("Leaderboard")
     if not scores:
         st.warning("This report has no entrants yet.", icon="👥")
         return
@@ -928,6 +1273,7 @@ def _render_leaderboard() -> None:
     frame = _scores_frame(scores)
     display = frame.copy()
     display["Accuracy"] = display["Accuracy"].map(lambda value: f"{value:.1%}")
+    _section_title("Standings", "Ranks are recalculated from the saved picks.")
     st.dataframe(display, hide_index=True, width="stretch")
 
     chart = pd.DataFrame(
@@ -936,6 +1282,7 @@ def _render_leaderboard() -> None:
             "Total": [score.total for score in scores],
         }
     ).set_index("Entrant")
+    _section_title("Points by entrant")
     st.bar_chart(chart, height=340, horizontal=True, sort=False)
 
     st.caption(TIE_BREAK_DESCRIPTION)
@@ -990,13 +1337,17 @@ def _scorecard_html(actual, entrant) -> str:
 
 
 def _render_compare() -> None:
+    _page_header(
+        "Compare",
+        "See one entrant's scorecard against the actual results, including every "
+        "correct pick and miss.",
+    )
     workspace = _workspace()
     if workspace is None:
         st.info("Load or create a report on the Setup page first.", icon="🏀")
         return
 
     scores = workspace.scores
-    st.header("Compare")
     if not scores:
         st.warning("This report has no entrants yet.", icon="👥")
         return
@@ -1028,18 +1379,19 @@ def _render_compare() -> None:
             "Points": [score.round_scores[round_name] for round_name in ROUND_ORDER],
         }
     ).set_index("Round")
-    st.subheader("Round-by-round points")
+    _section_title("Round-by-round points")
     st.bar_chart(round_frame, height=280, sort=False)
 
-    st.subheader("Scorecard")
-    st.caption(
+    _section_title(
+        "Scorecard",
         "Green = correct · Red = incorrect · Gray = pending actual result. "
-        "Hover or tap a game for the actual winner and points."
+        "Hover or tap a game for the actual winner and points.",
     )
-    st.markdown(
-        f'<div>{_scorecard_html(workspace.actual, entrant)}</div>',
-        unsafe_allow_html=True,
-    )
+    with st.container(key="card_scorecard"):
+        st.markdown(
+            f'<div>{_scorecard_html(workspace.actual, entrant)}</div>',
+            unsafe_allow_html=True,
+        )
 
     detail_rows = []
     for result in results:
@@ -1061,7 +1413,7 @@ def _render_compare() -> None:
 
     misses = [result for result in results if result.status == "incorrect"]
     misses.sort(key=lambda result: (-result.weight, ROUND_ORDER.index(result.round)))
-    st.subheader("Biggest misses")
+    _section_title("Biggest misses")
     if misses:
         st.dataframe(
             pd.DataFrame(
@@ -1093,7 +1445,7 @@ def _render_compare() -> None:
         if leader_results[slot_id].status == "correct"
         and selected_results[slot_id].status != "correct"
     ]
-    st.subheader("Leader scored, this entrant did not")
+    _section_title("Leader scored, this entrant did not")
     if leader.entrant == score.entrant and leader.source_name == score.source_name:
         st.caption("This entrant is the leader.")
     elif leader_only:
@@ -1119,7 +1471,6 @@ def _render_compare() -> None:
         st.caption("The leader did not score on any game this entrant missed.")
 
     # Entrant picks are intentionally locked behind this advanced control.
-    st.divider()
     with st.expander("Advanced: correct an entrant pick", expanded=False):
         st.warning(
             "Entrant picks are normally read-only. A correction requires a reason "
@@ -1232,12 +1583,16 @@ def _report_bytes(workspace: ReportSession) -> bytes:
 
 
 def _render_save_load() -> None:
+    _page_header(
+        "Save / Load",
+        "Write the five-sheet report, reload it from disk, export a copy, or "
+        "review logged corrections.",
+    )
     workspace = _workspace()
     if workspace is None:
         st.info("Load or create a report on the Setup page first.", icon="🏀")
         return
 
-    st.header("Save / Load")
     st.markdown(
         f'<p class="saved-path">{escape(str(workspace.report_path))}</p>',
         unsafe_allow_html=True,
@@ -1255,10 +1610,7 @@ def _render_save_load() -> None:
     status[2].metric("Corrections", len(workspace.corrections))
     if st.session_state.get("last_saved_at"):
         st.caption(f"Saved at: {st.session_state['last_saved_at']}")
-    if st.session_state.get("save_error"):
-        st.error(st.session_state["save_error"], icon="💾")
-    if st.session_state.get("save_notice"):
-        st.success(st.session_state["save_notice"], icon="💾")
+    _render_save_feedback()
     if not can_write:
         st.warning(
             "This legacy report has no complete first-round team data, so it "
@@ -1267,129 +1619,108 @@ def _render_save_load() -> None:
             icon="📄",
         )
 
-    save_path = st.text_input(
-        "Save report as",
-        key="save_path",
-        persist_state="session",
-        help="The editable report path. Names containing 'results' are rejected.",
-    )
-    actions = st.columns(2)
-    with actions[0]:
+    with st.container(key="card_save_report"):
+        _card_header(
+            "Save report",
+            "The current report path is overwritten atomically. Choose another "
+            "path to keep a copy.",
+            badge="Ready" if can_write else "Read-only",
+            tone="success" if can_write else "warning",
+        )
+        save_path = st.text_input(
+            "Save report as",
+            key="save_path",
+            persist_state="session",
+            help="The editable report path. Names containing 'results' are rejected.",
+        )
+        actions = st.columns(2)
+        with actions[0]:
+            if st.button(
+                "Save now",
+                key="save_now",
+                type="primary",
+                width="stretch",
+                disabled=not can_write,
+            ):
+                _save_workspace(
+                    workspace,
+                    path=Path(save_path),
+                    label="Saved",
+                )
+                st.rerun()
+        with actions[1]:
+            reload_target = Path(save_path) if save_path.strip() else None
+            if st.button(
+                "Reload saved report",
+                key="reload_saved",
+                width="stretch",
+                disabled=reload_target is None or not reload_target.exists(),
+            ):
+                try:
+                    reloaded = load_report(reload_target)
+                except ReportError as exc:
+                    st.error(str(exc))
+                else:
+                    _install_workspace(reloaded, notice="Saved report reloaded.")
+                    st.rerun()
+
+    with st.expander("Rebuild from original bracket files", expanded=False):
+        st.caption(
+            "Rebuilding discards saved actual results, corrections, and entrant "
+            "edits. Original bracket files are read-only inputs."
+        )
+        confirm_rebuild = st.checkbox(
+            "I understand the current saved edits will be discarded",
+            key="confirm_rebuild",
+        )
         if st.button(
-            "Save now",
-            key="save_now",
-            type="primary",
-            width="stretch",
-            disabled=not can_write,
+            "Rebuild report from raw brackets",
+            key="rebuild_report",
+            disabled=not confirm_rebuild,
         ):
-            _save_workspace(
-                workspace,
-                path=Path(save_path),
-                label="Saved",
-            )
-            st.rerun()
-    with actions[1]:
-        if st.button(
-            "Reload saved report",
-            key="reload_saved",
-            width="stretch",
-            disabled=not Path(save_path).exists(),
-        ):
+            folder = Path(st.session_state["data_folder"])
             try:
-                reloaded = load_report(Path(save_path))
-            except ReportError as exc:
+                rebuilt = build_from_raw(folder, report_path=Path(save_path))
+            except (BracketError, ReportError, OSError) as exc:
                 st.error(str(exc))
             else:
-                _install_workspace(reloaded, notice="Saved report reloaded.")
-                st.rerun()
+                _install_workspace(rebuilt)
+                if _save_workspace(rebuilt, label="Rebuilt"):
+                    st.rerun()
 
-    st.divider()
-    st.subheader("Rebuild from original bracket files")
-    st.caption(
-        "Rebuilding discards saved actual results, corrections, and entrant edits. "
-        "Original bracket files are read-only inputs."
-    )
-    confirm_rebuild = st.checkbox(
-        "I understand the current saved edits will be discarded",
-        key="confirm_rebuild",
-    )
-    if st.button(
-        "Rebuild report from raw brackets",
-        key="rebuild_report",
-        disabled=not confirm_rebuild,
-    ):
-        folder = Path(st.session_state["data_folder"])
-        try:
-            rebuilt = build_from_raw(folder, report_path=Path(save_path))
-        except (BracketError, ReportError, OSError) as exc:
-            st.error(str(exc))
+    with st.container(key="card_download"):
+        _card_header(
+            "Download",
+            "Export the current in-memory report as a five-sheet workbook.",
+        )
+        if can_write:
+            st.download_button(
+                "Download current report (.xlsx)",
+                data=_report_bytes(workspace),
+                file_name=workspace.report_path.name,
+                mime=(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ),
+                width="stretch",
+            )
         else:
-            _install_workspace(rebuilt)
-            if _save_workspace(rebuilt, label="Rebuilt"):
-                st.rerun()
+            st.caption("Rebuild the legacy report before downloading a five-sheet copy.")
 
-    st.divider()
-    st.subheader("Download")
-    if can_write:
-        st.download_button(
-            "Download current report (.xlsx)",
-            data=_report_bytes(workspace),
-            file_name=workspace.report_path.name,
-            mime=(
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            ),
-            width="stretch",
-        )
-    else:
-        st.caption("Rebuild the legacy report before downloading a five-sheet copy.")
-
-    st.divider()
-    st.subheader("Corrections history")
-    if workspace.corrections:
-        st.dataframe(
-            pd.DataFrame(workspace.corrections),
-            hide_index=True,
-            width="stretch",
-        )
-    else:
-        st.caption("No entrant corrections have been logged.")
+    with st.expander("Corrections history", expanded=False):
+        if workspace.corrections:
+            st.dataframe(
+                pd.DataFrame(workspace.corrections),
+                hide_index=True,
+                width="stretch",
+            )
+        else:
+            st.caption("No entrant corrections have been logged.")
 
 
 # ---------------------------------------------------------------------------
 # Page shell
 # ---------------------------------------------------------------------------
-st.markdown('<p class="app-kicker">2026 NCAA men’s tournament</p>', unsafe_allow_html=True)
-st.markdown(f'<p class="app-title">{escape(APP_NAME)}</p>', unsafe_allow_html=True)
-st.markdown(
-    '<p class="app-subtitle">Local-folder bracket scoring. The five-sheet '
-    "report is the saved state.</p>",
-    unsafe_allow_html=True,
-)
-
-with st.sidebar:
-    st.header("Navigation")
-    page = st.radio(
-        "Page",
-        ["Setup", "Actual Results", "Leaderboard", "Compare", "Save/Load"],
-        key="nav",
-    )
-    st.divider()
-    st.toggle(
-        "Autosave after result changes",
-        key="autosave",
-        help="When on, every actual-result change writes the report immediately.",
-    )
-    workspace_for_status = _workspace()
-    if workspace_for_status is not None:
-        st.caption(f"Report: {workspace_for_status.report_path.name}")
-        if st.session_state.get("last_saved_at"):
-            st.caption(f"Saved at: {st.session_state['last_saved_at']}")
-        if st.session_state.get("save_error"):
-            st.caption("Last save failed; unsaved edits are still in memory.")
-        else:
-            st.caption("All changes are saved." if st.session_state.get("autosave") else "Autosave is off.")
-    st.divider()
-    st.caption(f"App {APP_VERSION} · {REPORT_FORMAT_NAME}")
+page = _render_app_shell()
 
 if page == "Setup":
     _render_setup()

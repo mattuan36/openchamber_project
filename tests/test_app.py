@@ -40,7 +40,7 @@ def test_streamlit_demo_load_edit_views_save_and_reload(tmp_path: Path) -> None:
         ("CHRIS", 136),
     ]
 
-    app.radio(key="nav").set_value("Actual Results")
+    app.segmented_control(key="nav").set_value("Actual Results")
     app.run()
     assert not app.exception
     assert "16 · Siena" in app.button(key="pick_R64-E1_1").label
@@ -75,20 +75,20 @@ def test_streamlit_demo_load_edit_views_save_and_reload(tmp_path: Path) -> None:
     assert workspace.actual.picks["R64-E1"] == "Siena"
     assert workspace.pending == 3
 
-    app.radio(key="nav").set_value("Leaderboard")
+    app.segmented_control(key="nav").set_value("Leaderboard")
     app.run()
     assert not app.exception
     metrics = {metric.label: metric.value for metric in app.metric}
     assert metrics["Leader"] == "MATT"
     assert metrics["Pending games"] == "3"
 
-    app.radio(key="nav").set_value("Compare")
+    app.segmented_control(key="nav").set_value("Compare")
     app.run()
     assert not app.exception
     assert app.selectbox(key="compare_index").value == 0
     assert app.selectbox(key="correction_slot").value == "CH"
 
-    app.radio(key="nav").set_value("Save/Load")
+    app.segmented_control(key="nav").set_value("Save/Load")
     app.run()
     assert not app.exception
     app.button(key="save_now").click()
@@ -117,7 +117,7 @@ def test_streamlit_demo_load_edit_views_save_and_reload(tmp_path: Path) -> None:
     app.run()
     assert not app.exception
     assert saved_copy.exists()
-    app.radio(key="nav").set_value("Setup")
+    app.segmented_control(key="nav").set_value("Setup")
     app.run()
     assert not app.exception
     assert Path(app.text_input(key="data_folder").value) == tmp_path

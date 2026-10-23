@@ -1,4 +1,32 @@
+# Environments
 venv/
-__pycache__/
-*.pyc
+.venv/
+env/
+ENV/
+
+# Secrets — never commit real credentials
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

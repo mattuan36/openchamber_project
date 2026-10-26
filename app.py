@@ -61,7 +61,6 @@ PAGE_LABELS: dict[str, str] = {
     "Setup": "Setup",
     "Actual Results": "Results",
     "Leaderboard": "Leaderboard",
-    "Compare": "Compare",
     "Save/Load": "Save/Load",
 }
 NAV_OPTIONS = list(PAGE_LABELS)
@@ -186,22 +185,42 @@ st.markdown(
       div[data-testid="stMetricValue"] { font-size: 1.28rem; }
       div[data-testid="stExpander"] { border-color: var(--app-border); border-radius: .75rem; }
       footer { visibility: hidden; }
-      .scorecard { display: flex; flex-wrap: wrap; gap: .35rem; margin: .15rem 0 .85rem; }
-      .score-cell { flex: 1 1 5.6rem; min-width: 5.2rem; border-radius: .45rem;
-                    padding: .32rem .45rem; border: 1px solid rgba(128,128,128,.28);
-                    line-height: 1.2; }
-      .score-cell .slot { display: block; font-size: .64rem; letter-spacing: .06em;
-                          text-transform: uppercase; opacity: .62; }
-      .score-cell .team { display: block; font-size: .78rem; font-weight: 600;
-                          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .score-cell.correct { background: rgba(34,197,94,.18);
-                            border-color: rgba(34,197,94,.55); }
-      .score-cell.incorrect { background: rgba(239,68,68,.16);
-                              border-color: rgba(239,68,68,.52); }
-      .score-cell.pending { background: rgba(128,128,128,.12);
-                            border-color: rgba(128,128,128,.32); opacity: .88; }
-      .score-region { margin: .6rem 0 .1rem; font-size: .8rem; font-weight: 700;
-                      letter-spacing: .05em; text-transform: uppercase; opacity: .65; }
+      .entrant-card { display: flex; flex-direction: column; gap: .22rem; }
+      .entrant-team-row { display: flex; align-items: center; justify-content: space-between;
+                          gap: .3rem; min-height: 1.65rem; padding: 0 .3rem;
+                          border-radius: .42rem; border: 1px solid rgba(128,128,128,.24);
+                          background: rgba(128,128,128,.055); font-size: .68rem;
+                          font-weight: 650; line-height: 1.15; }
+      .entrant-team-row.picked.correct { background: rgba(34,197,94,.18);
+                                         border-color: rgba(34,197,94,.55); }
+      .entrant-team-row.picked.incorrect { background: rgba(239,68,68,.16);
+                                           border-color: rgba(239,68,68,.52); }
+      .entrant-team-row.picked.pending { background: rgba(128,128,128,.12);
+                                         border-color: rgba(128,128,128,.32); opacity: .88; }
+      .entrant-team-name { min-width: 0; overflow: hidden; text-overflow: ellipsis;
+                           white-space: nowrap; }
+      .entrant-mark { flex: 0 0 auto; font-size: .82rem; font-weight: 800; line-height: 1; }
+      .entrant-mark.correct { color: #22c55e; }
+      .entrant-mark.incorrect { color: #ef4444; }
+      .entrant-mark.pending { color: #9aa3b1; }
+      .entrant-result { display: flex; align-items: center; gap: .22rem;
+                        padding: 0 .12rem; font-size: .54rem; font-weight: 650;
+                        letter-spacing: .05em; line-height: 1.2;
+                        text-transform: uppercase; opacity: .82; }
+      .entrant-result-mark { font-weight: 800; }
+      .entrant-result-mark.correct { color: #22c55e; }
+      .entrant-result-mark.incorrect { color: #ef4444; }
+      .entrant-result-mark.pending { color: #9aa3b1; }
+      .entrant-card.play-in { gap: .12rem; }
+      .entrant-card.play-in .entrant-team-row { min-height: 1.3rem; font-size: .62rem; }
+      .entrant-card.play-in .entrant-result { font-size: .48rem; line-height: 1.1; }
+      [class*="st-key-entrant_bracket"] [class*="st-key-matchup_"] {
+        height: auto !important; min-height: 5.6rem; }
+      [class*="st-key-entrant_bracket"] [class*="st-key-matchup_"] > div {
+        height: auto !important; min-height: 0 !important;
+        max-height: none !important; flex-shrink: 0 !important; }
+      [class*="st-key-matchup_"] div[data-testid="stMarkdownContainer"] {
+        margin-bottom: 0 !important; }
       .saved-path { font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
                     font-size: .82rem; opacity: .8; overflow-wrap: anywhere; }
 
@@ -291,19 +310,37 @@ st.markdown(
       [class*="st-key-matchup_"] button p { white-space: nowrap; overflow: hidden;
                                             text-overflow: ellipsis; }
       @media (max-width: 1000px) {
-        :root { --bracket-pitch: 94px; }
+        :root { --bracket-pitch: 104px; }
         [class*="st-key-matchup_"] button { font-size: .62rem; }
         .bracket-path { display: none; }
       }
       @media (max-width: 900px) {
         /* Stack the three panels, but keep each region's round columns. */
-        [class*="st-key-actual_bracket"] > div > div[data-testid="stHorizontalBlock"] {
+        [class*="st-key-actual_bracket"] > div > div[data-testid="stHorizontalBlock"],
+        [class*="st-key-entrant_bracket"] > div > div[data-testid="stHorizontalBlock"] {
           flex-direction: column !important;
           flex-wrap: nowrap !important;
         }
-        [class*="st-key-actual_bracket"] > div > div[data-testid="stHorizontalBlock"] > div {
+        [class*="st-key-actual_bracket"] > div > div[data-testid="stHorizontalBlock"] > div,
+        [class*="st-key-entrant_bracket"] > div > div[data-testid="stHorizontalBlock"] > div {
           width: 100% !important;
           flex: 1 1 100% !important;
+        }
+        [class*="st-key-entrant_bracket"] [class*="st-key-region_"] > div > div[data-testid="stHorizontalBlock"] {
+          flex-direction: column !important;
+          flex-wrap: nowrap !important;
+        }
+        [class*="st-key-entrant_bracket"] [class*="st-key-region_"] > div > div[data-testid="stHorizontalBlock"] > div {
+          width: 100% !important;
+          flex: 1 1 100% !important;
+        }
+        [class*="st-key-entrant_bracket"] div[data-testid="stVerticalBlock"][class*="st-key-align_"] {
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: none !important;
+        }
+        [class*="st-key-entrant_bracket"] [class*="st-key-round_headers_"] {
+          display: none !important;
         }
         [class*="st-key-app_topbar"] {
           position: static;
@@ -339,7 +376,7 @@ _STATE_DEFAULTS: dict[str, object] = {
     "save_error": None,
     "save_notice": None,
     "autosave": True,
-    "compare_index": 0,
+    "leaderboard_entrant": None,
     "confirm_rebuild": False,
     "setup_confirm_context": None,
     "confirm_reload": False,
@@ -348,6 +385,7 @@ _STATE_DEFAULTS: dict[str, object] = {
     "report_path_sync": None,
     "autoload_report": None,
     "correction_slot": "CH",
+    "correction_entrant": 0,
     "correction_reason": "",
     "correction_confirmed": False,
 }
@@ -530,7 +568,6 @@ def _install_workspace(
     st.session_state["last_saved_at"] = _saved_at_from_disk(workspace.report_path)
     st.session_state["pending_save_path"] = str(workspace.report_path)
     st.session_state["report_path_sync"] = str(workspace.report_path)
-    st.session_state["compare_index"] = 0
     st.session_state["scan"] = None
     _clear_actual_widgets()
 
@@ -1009,11 +1046,15 @@ def _matchup_card(
     seed_map: dict[str, int],
     *,
     label: str | None = None,
+    result_map=None,
+    entrant=None,
 ) -> None:
     slot = SLOTS_BY_ID[slot_id]
     current = workspace.actual.picks.get(slot_id, "").strip()
     options = _matchup_options(slot_id, workspace)
     card_label = label or f"Game {slot.game}"
+    if result_map is not None and label is None:
+        card_label = f"{slot.round} · Game {slot.game}"
     if len(options) > 2:
         card_label += " · Play-in"
 
@@ -1022,6 +1063,77 @@ def _matchup_card(
             f'<div class="bracket-game-label">{escape(card_label)}</div>',
             unsafe_allow_html=True,
         )
+        if result_map is not None:
+            result = result_map[slot_id]
+            pick = (result.pick or "").strip()
+            teams: list[str] = []
+            if entrant is not None:
+                for team in available_picks(
+                    slot_id, workspace.team_pairs, entrant.picks
+                ):
+                    if team and not any(
+                        team_matches(team, existing) for existing in teams
+                    ):
+                        teams.append(team)
+            if pick and not any(team_matches(pick, existing) for existing in teams):
+                teams.append(pick)
+            rows: list[str] = []
+            for team in teams:
+                picked = bool(pick and team_matches(pick, team))
+                row_class = (
+                    f"entrant-team-row picked {result.status}"
+                    if picked
+                    else "entrant-team-row"
+                )
+                mark = ""
+                if picked:
+                    symbol = (
+                        "✓"
+                        if result.status == "correct"
+                        else "✗"
+                        if result.status == "incorrect"
+                        else "–"
+                    )
+                    mark = (
+                        f'<span class="entrant-mark {result.status}">'
+                        f"{symbol}</span>"
+                    )
+                rows.append(
+                    f'<div class="{row_class}">'
+                    f'<span class="entrant-team-name">'
+                    f"{escape(_seed_label(team, seed_map))}</span>"
+                    f"{mark}</div>"
+                )
+            points_label = (
+                f"{result.points} pt"
+                if result.points == 1
+                else f"{result.points} pts"
+            )
+            result_label = f"{result.status.title()} - {points_label}"
+            symbol = (
+                "✓"
+                if result.status == "correct"
+                else "✗"
+                if result.status == "incorrect"
+                else "–"
+            )
+            tooltip = (
+                f"{slot_id} | Actual: {result.actual or 'Pending'} | "
+                f"Pick: {result.pick or 'Blank'} | {result.status.title()} | "
+                f"{result.points} pts"
+            )
+            card_class = (
+                "entrant-card play-in" if len(teams) > 2 else "entrant-card"
+            )
+            st.markdown(
+                f'<div class="{card_class}" title="{escape(tooltip)}">'
+                f'{"".join(rows)}'
+                f'<div class="entrant-result {result.status}">'
+                f'<span class="entrant-result-mark {result.status}">'
+                f"{symbol}</span> {escape(result_label)}</div></div>",
+                unsafe_allow_html=True,
+            )
+            return
         if not options:
             st.button(
                 PENDING_LABEL,
@@ -1055,6 +1167,8 @@ def _render_region_board(
     seed_map: dict[str, int],
     *,
     mirrored: bool = False,
+    result_map=None,
+    entrant=None,
 ) -> None:
     rounds = ("E8", "S16", "R32", "R64") if mirrored else ("R64", "R32", "S16", "E8")
     path = "E8 ← S16 ← R32 ← R64" if mirrored else "R64 → R32 → S16 → E8"
@@ -1082,11 +1196,17 @@ def _render_region_board(
                 ):
                     for slot_id in _region_slots(region, round_name):
                         with st.container(key=f"align_{slot_id}", gap=None):
-                            _matchup_card(slot_id, workspace, seed_map)
+                            _matchup_card(
+                                slot_id,
+                                workspace,
+                                seed_map,
+                                result_map=result_map,
+                                entrant=entrant,
+                            )
 
 
 def _render_final_board(
-    workspace: ReportSession, seed_map: dict[str, int]
+    workspace: ReportSession, seed_map: dict[str, int], result_map=None, entrant=None
 ) -> None:
     with st.container(key="final_panel"):
         st.markdown(
@@ -1098,12 +1218,16 @@ def _render_final_board(
             workspace,
             seed_map,
             label="F4 Game 1 · East / South",
+            result_map=result_map,
+            entrant=entrant,
         )
         _matchup_card(
             "F4-2",
             workspace,
             seed_map,
             label="F4 Game 2 · West / Midwest",
+            result_map=result_map,
+            entrant=entrant,
         )
         st.markdown(
             '<div class="bracket-final-head">Championship</div>',
@@ -1114,7 +1238,49 @@ def _render_final_board(
             workspace,
             seed_map,
             label="National championship",
+            result_map=result_map,
+            entrant=entrant,
         )
+
+
+def _render_entrant_bracket(workspace: ReportSession, entrant) -> None:
+    result_map = {
+        result.slot_id: result
+        for result in score_games(workspace.actual, entrant)
+    }
+    seed_map = workspace.team_seed_map
+    with st.container(key="entrant_bracket"):
+        left, center, right = st.columns(
+            [5, 2.2, 5], gap="small", vertical_alignment="top", wrap=False
+        )
+        with left:
+            _render_region_board(
+                "E", workspace, seed_map, result_map=result_map, entrant=entrant
+            )
+            _render_region_board(
+                "S", workspace, seed_map, result_map=result_map, entrant=entrant
+            )
+        with center:
+            _render_final_board(
+                workspace, seed_map, result_map=result_map, entrant=entrant
+            )
+        with right:
+            _render_region_board(
+                "W",
+                workspace,
+                seed_map,
+                mirrored=True,
+                result_map=result_map,
+                entrant=entrant,
+            )
+            _render_region_board(
+                "M",
+                workspace,
+                seed_map,
+                mirrored=True,
+                result_map=result_map,
+                entrant=entrant,
+            )
 
 
 def _round_groups(round_name: str) -> list[tuple[str | None, list[str]]]:
@@ -1273,8 +1439,39 @@ def _render_leaderboard() -> None:
     frame = _scores_frame(scores)
     display = frame.copy()
     display["Accuracy"] = display["Accuracy"].map(lambda value: f"{value:.1%}")
-    _section_title("Standings", "Ranks are recalculated from the saved picks.")
-    st.dataframe(display, hide_index=True, width="stretch")
+    _section_title("Standings", "Select a row to view that entrant's bracket.")
+    event = st.dataframe(
+        display,
+        hide_index=True,
+        width="stretch",
+        key="leaderboard_table",
+        on_select="rerun",
+        selection_mode="single-row",
+    )
+    if event.selection.rows:
+        st.session_state["leaderboard_entrant"] = event.selection.rows[0]
+    selected_entrant = st.session_state.get("leaderboard_entrant")
+    if selected_entrant is not None and not (0 <= selected_entrant < len(scores)):
+        selected_entrant = None
+        st.session_state["leaderboard_entrant"] = None
+
+    if selected_entrant is None:
+        st.caption("Select a row in the standings to view that entrant's bracket.")
+    else:
+        score = scores[selected_entrant]
+        with st.container(key="card_entrant_bracket"):
+            _card_header(
+                f"{score.entrant}'s bracket",
+                "Green = correct · Red = incorrect · Gray = pending actual result.",
+                badge=f"Rank #{score.rank}",
+                tone="success" if score.rank == 1 else "neutral",
+            )
+            details = st.columns(4)
+            details[0].metric("Total", f"{score.total} / 148")
+            details[1].metric("Rank", f"#{score.rank}")
+            details[2].metric("Correct picks", f"{score.correct} / {score.decided}")
+            details[3].metric("Accuracy", f"{score.accuracy:.1%}")
+            _render_entrant_bracket(workspace, score.bracket)
 
     chart = pd.DataFrame(
         {
@@ -1293,257 +1490,6 @@ def _render_leaderboard() -> None:
         mime="text/csv",
         width="stretch",
     )
-
-
-# ---------------------------------------------------------------------------
-# Compare
-# ---------------------------------------------------------------------------
-def _scorecard_html(actual, entrant) -> str:
-    results = {result.slot_id: result for result in score_games(actual, entrant)}
-    blocks: list[str] = []
-    for round_name in ROUND_ORDER:
-        blocks.append(
-            f'<div class="score-region">{escape(ROUND_NAMES[round_name])}</div>'
-        )
-        for region, slot_ids in _round_groups(round_name):
-            if region is not None:
-                blocks.append(
-                    f'<div class="score-region">{escape(REGION_NAMES[region])}</div>'
-                )
-            blocks.append('<div class="scorecard">')
-            for slot_id in slot_ids:
-                result = results[slot_id]
-                slot = SLOTS_BY_ID[slot_id]
-                badge = (
-                    "CH"
-                    if slot.round == "CH"
-                    else f"F4-{slot.game}"
-                    if slot.round == "F4"
-                    else f"{slot.region}{slot.game}"
-                )
-                pick = result.pick or "—"
-                title = (
-                    f"{slot_id} | Actual: {result.actual or 'Pending'} | "
-                    f"Pick: {result.pick or 'Blank'} | "
-                    f"{result.status.title()} | {result.points} pts"
-                )
-                blocks.append(
-                    f'<div class="score-cell {result.status}" title="{escape(title)}">'
-                    f'<span class="slot">{escape(badge)}</span>'
-                    f'<span class="team">{escape(pick)}</span></div>'
-                )
-            blocks.append("</div>")
-    return "\n".join(blocks)
-
-
-def _render_compare() -> None:
-    _page_header(
-        "Compare",
-        "See one entrant's scorecard against the actual results, including every "
-        "correct pick and miss.",
-    )
-    workspace = _workspace()
-    if workspace is None:
-        st.info("Load or create a report on the Setup page first.", icon="🏀")
-        return
-
-    scores = workspace.scores
-    if not scores:
-        st.warning("This report has no entrants yet.", icon="👥")
-        return
-
-    if st.session_state.get("compare_index", 0) >= len(scores):
-        st.session_state["compare_index"] = 0
-    selected_index = st.selectbox(
-        "Entrant",
-        list(range(len(scores))),
-        key="compare_index",
-        format_func=lambda index: (
-            f"{scores[index].entrant} — {scores[index].source_name}"
-        ),
-    )
-    score = scores[selected_index]
-    entrant = score.bracket
-    results = score_games(workspace.actual, entrant)
-
-    cards = st.columns(5)
-    cards[0].metric("Total", f"{score.total} / 148")
-    cards[1].metric("Rank", f"#{score.rank}")
-    cards[2].metric("Correct picks", f"{score.correct} / {score.decided}")
-    cards[3].metric("Pending games", score.pending)
-    cards[4].metric("Accuracy", f"{score.accuracy:.1%}")
-
-    round_frame = pd.DataFrame(
-        {
-            "Round": [ROUND_NAMES[round_name] for round_name in ROUND_ORDER],
-            "Points": [score.round_scores[round_name] for round_name in ROUND_ORDER],
-        }
-    ).set_index("Round")
-    _section_title("Round-by-round points")
-    st.bar_chart(round_frame, height=280, sort=False)
-
-    _section_title(
-        "Scorecard",
-        "Green = correct · Red = incorrect · Gray = pending actual result. "
-        "Hover or tap a game for the actual winner and points.",
-    )
-    with st.container(key="card_scorecard"):
-        st.markdown(
-            f'<div>{_scorecard_html(workspace.actual, entrant)}</div>',
-            unsafe_allow_html=True,
-        )
-
-    detail_rows = []
-    for result in results:
-        slot = SLOTS_BY_ID[result.slot_id]
-        detail_rows.append(
-            {
-                "Slot": result.slot_id,
-                "Round": ROUND_NAMES[result.round],
-                "Region": REGION_NAMES.get(slot.region or "", "Final"),
-                "Actual Pick": result.actual,
-                "Entrant Pick": result.pick,
-                "Result": result.status.title(),
-                "Points": result.points,
-            }
-        )
-    detail = pd.DataFrame(detail_rows)
-    with st.expander("All 63 games", expanded=False):
-        st.dataframe(detail, hide_index=True, width="stretch")
-
-    misses = [result for result in results if result.status == "incorrect"]
-    misses.sort(key=lambda result: (-result.weight, ROUND_ORDER.index(result.round)))
-    _section_title("Biggest misses")
-    if misses:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {
-                        "Slot": result.slot_id,
-                        "Round": ROUND_NAMES[result.round],
-                        "Actual Pick": result.actual,
-                        "Entrant Pick": result.pick or "(blank)",
-                        "Points Missed": result.weight,
-                    }
-                    for result in misses[:10]
-                ]
-            ),
-            hide_index=True,
-            width="stretch",
-        )
-    else:
-        st.caption("No misses yet — every decided game is correct.")
-
-    leader = scores[0]
-    leader_results = {
-        result.slot_id: result for result in score_games(workspace.actual, leader.bracket)
-    }
-    selected_results = {result.slot_id: result for result in results}
-    leader_only = [
-        leader_results[slot_id]
-        for slot_id in SLOT_IDS
-        if leader_results[slot_id].status == "correct"
-        and selected_results[slot_id].status != "correct"
-    ]
-    _section_title("Leader scored, this entrant did not")
-    if leader.entrant == score.entrant and leader.source_name == score.source_name:
-        st.caption("This entrant is the leader.")
-    elif leader_only:
-        st.dataframe(
-            pd.DataFrame(
-                [
-                    {
-                        "Slot": result.slot_id,
-                        "Round": ROUND_NAMES[result.round],
-                        "Actual Pick": result.actual,
-                        "Leader Pick": result.pick,
-                        "Entrant Pick": selected_results[result.slot_id].pick
-                        or "(blank)",
-                        "Points": result.weight,
-                    }
-                    for result in leader_only[:15]
-                ]
-            ),
-            hide_index=True,
-            width="stretch",
-        )
-    else:
-        st.caption("The leader did not score on any game this entrant missed.")
-
-    # Entrant picks are intentionally locked behind this advanced control.
-    with st.expander("Advanced: correct an entrant pick", expanded=False):
-        st.warning(
-            "Entrant picks are normally read-only. A correction requires a reason "
-            "and explicit confirmation and is written to the Corrections sheet.",
-            icon="🔒",
-        )
-        if not workspace.teams_complete:
-            st.warning(
-                "Rebuild this legacy report from the original bracket files before "
-                "correcting entrant picks.",
-                icon="📄",
-            )
-        slot_options = SLOT_IDS
-        correction_slot = st.selectbox(
-            "Game to correct",
-            slot_options,
-            key="correction_slot",
-            format_func=lambda slot_id: f"{slot_id} — {SLOT_STANDINGS_LABEL[slot_id]}",
-        )
-        current_pick = entrant.picks.get(correction_slot, "").strip()
-        options: list[str] = [""]
-        for team in available_picks(
-            correction_slot, workspace.team_pairs, entrant.picks
-        ):
-            if team and not any(team_matches(team, existing) for existing in options):
-                options.append(team)
-        if current_pick and current_pick not in options:
-            options.append(current_pick)
-        if st.session_state.get("correction_new_pick") not in options:
-            st.session_state.pop("correction_new_pick", None)
-        new_pick = st.selectbox(
-            "Corrected pick",
-            options,
-            index=options.index(current_pick) if current_pick in options else 0,
-            format_func=_format_pick,
-            key="correction_new_pick",
-        )
-        reason = st.text_input(
-            "Reason",
-            key="correction_reason",
-            placeholder="For example: misread the handwritten bracket",
-        )
-        confirmed = st.checkbox(
-            "I understand this changes saved entrant picks and is permanently logged",
-            key="correction_confirmed",
-        )
-        if st.button(
-            "Apply correction",
-            key="apply_correction",
-            type="primary",
-            disabled=(
-                not reason.strip()
-                or not confirmed
-                or not workspace.teams_complete
-            ),
-        ):
-            try:
-                updated, entry = workspace.with_corrected_entrant(
-                    selected_index,
-                    correction_slot,
-                    new_pick,
-                    reason,
-                )
-            except ReportError as exc:
-                st.error(str(exc))
-            else:
-                st.session_state["workspace"] = updated
-                st.session_state["save_notice"] = (
-                    f"Corrected {entry['Entrant']} {entry['Slot']}."
-                )
-                if st.session_state.get("autosave", True):
-                    _save_workspace(updated, label="Autosaved correction")
-                st.rerun()
 
 
 SLOT_STANDINGS_LABEL = {
@@ -1706,6 +1652,98 @@ def _render_save_load() -> None:
         else:
             st.caption("Rebuild the legacy report before downloading a five-sheet copy.")
 
+    with st.expander("Correct an entrant pick", expanded=False):
+        st.warning(
+            "Entrant picks are normally read-only. A correction requires a reason "
+            "and explicit confirmation and is written to the Corrections sheet.",
+            icon="🔒",
+        )
+        if not workspace.teams_complete:
+            st.warning(
+                "Rebuild this legacy report from the original bracket files before "
+                "correcting entrant picks.",
+                icon="📄",
+            )
+        elif not workspace.scores:
+            st.caption("This report has no entrants to correct.")
+        else:
+            if st.session_state.get("correction_entrant", 0) >= len(workspace.scores):
+                st.session_state["correction_entrant"] = 0
+            selected_correction_index = st.selectbox(
+                "Entrant",
+                list(range(len(workspace.scores))),
+                key="correction_entrant",
+                format_func=lambda index: (
+                    f"{workspace.scores[index].entrant} — "
+                    f"{workspace.scores[index].source_name}"
+                ),
+            )
+            entrant = workspace.scores[selected_correction_index].bracket
+            correction_slot = st.selectbox(
+                "Game to correct",
+                SLOT_IDS,
+                key="correction_slot",
+                format_func=lambda slot_id: (
+                    f"{slot_id} — {SLOT_STANDINGS_LABEL[slot_id]}"
+                ),
+            )
+            current_pick = entrant.picks.get(correction_slot, "").strip()
+            options: list[str] = [""]
+            for team in available_picks(
+                correction_slot, workspace.team_pairs, entrant.picks
+            ):
+                if team and not any(
+                    team_matches(team, existing) for existing in options
+                ):
+                    options.append(team)
+            if current_pick and current_pick not in options:
+                options.append(current_pick)
+            if st.session_state.get("correction_new_pick") not in options:
+                st.session_state.pop("correction_new_pick", None)
+            new_pick = st.selectbox(
+                "Corrected pick",
+                options,
+                index=options.index(current_pick) if current_pick in options else 0,
+                format_func=_format_pick,
+                key="correction_new_pick",
+            )
+            reason = st.text_input(
+                "Reason",
+                key="correction_reason",
+                placeholder="For example: misread the handwritten bracket",
+            )
+            confirmed = st.checkbox(
+                "I understand this changes saved entrant picks and is permanently logged",
+                key="correction_confirmed",
+            )
+            if st.button(
+                "Apply correction",
+                key="apply_correction",
+                type="primary",
+                disabled=(
+                    not reason.strip()
+                    or not confirmed
+                    or not workspace.teams_complete
+                ),
+            ):
+                try:
+                    updated, entry = workspace.with_corrected_entrant(
+                        selected_correction_index,
+                        correction_slot,
+                        new_pick,
+                        reason,
+                    )
+                except ReportError as exc:
+                    st.error(str(exc))
+                else:
+                    st.session_state["workspace"] = updated
+                    st.session_state["save_notice"] = (
+                        f"Corrected {entry['Entrant']} {entry['Slot']}."
+                    )
+                    if st.session_state.get("autosave", True):
+                        _save_workspace(updated, label="Autosaved correction")
+                    st.rerun()
+
     with st.expander("Corrections history", expanded=False):
         if workspace.corrections:
             st.dataframe(
@@ -1728,7 +1766,5 @@ elif page == "Actual Results":
     _render_actual_results()
 elif page == "Leaderboard":
     _render_leaderboard()
-elif page == "Compare":
-    _render_compare()
 else:
     _render_save_load()

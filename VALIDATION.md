@@ -137,9 +137,10 @@ Championship.
 | Team disagreement warning | An entrant with a different first-round matchup emits a warning and does not override the actual bracket |
 | Fresh-session continue | An existing report loads automatically, with matching picks and scores |
 | Save As sync | Saving to a new report path updates the active report and the editable Setup path |
-| Top-bar shell | Setup, Results, Leaderboard, Compare, and Save/Load switch from the top segmented navigation; the sidebar is absent; report status and autosave live in the top-bar popover |
+| Top-bar shell | Setup, Results, Leaderboard, and Save/Load switch from the top segmented navigation; the sidebar is absent; report status and autosave live in the top-bar popover |
 | Setup hierarchy | Folder scan, saved report, rebuild, and advanced paths render as one page; rebuild and advanced sections are collapsed when a saved report is open |
-| Streamlit AppTest | Demo load, actual edit, winner toggle, seeded board and mirrored paths, leaderboard, compare, save, reload, Save As, and fresh-session continue all run without app exceptions |
+| Leaderboard bracket | Selecting a standings row renders that entrant's bracket with both teams per matchup and a result line; correct picks are green with a check, incorrect red with an X, and pending gray with a dash |
+| Streamlit AppTest | Demo load, actual edit, winner toggle, seeded board and mirrored paths, leaderboard bracket selection, save, reload, Save As, and fresh-session continue all run without app exceptions |
 | Test suite | 70 tests passed |
 
 ## Streamlit and five-sheet verification
@@ -166,10 +167,10 @@ Verified flow:
    MATT to 135 and CHRIS to 123. Clicking Siena again clears `R64-E1` to pending
    (four pending games); clicking it once more restores the three-pending state.
 6. Saving and reloading the report preserves that edit, the seeds, and the
-   recalculated standings. Corrections made through the advanced Compare
+   recalculated standings. Corrections made through the advanced Save/Load
    control are logged and persist across reload.
 7. The AppTest smoke test repeats this flow headlessly, including the board
-   markup, winner toggle, Leaderboard, and Compare pages.
+   markup, winner toggle, Leaderboard bracket selection, and Save/Load page.
 
 ## Reproduce
 

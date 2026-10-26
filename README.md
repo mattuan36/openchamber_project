@@ -37,7 +37,7 @@ The bundled sample data contains:
 ## Streamlit workflow
 
 Run `streamlit run app.py`. The top bar navigates between **Setup**,
-**Results**, **Leaderboard**, **Compare**, and **Save/Load**, and shows the open
+**Results**, **Leaderboard**, and **Save/Load**, and shows the open
 report, last save, and autosave settings. Setup defaults to `sample_data/demo`;
 any local folder path can be entered.
 
@@ -59,17 +59,16 @@ any local folder path can be entered.
    rounds are vertically aligned with their feeder games. Click a team to choose
    it (the winner is highlighted) and click the highlighted winner again to
    return the game to pending. Changing a feeder winner clears downstream picks
-   that are no longer possible. Standings and comparisons recalculate
-   immediately.
+   that are no longer possible. Standings and scores recalculate immediately.
 5. **Leaderboard** shows metric cards, a ranked table with round points,
-   correct picks, pending games, accuracy, a total-points bar chart, the
-   tie-break rule, and a CSV download.
-6. **Compare** shows an entrant selector, KPI cards, round points, a 63-game
-   color-coded scorecard grouped by round and region (green correct, red
-   incorrect, gray pending), a full game table, biggest misses, and games where
-   the leader scored but the selected entrant did not.
-7. **Save/Load** saves now, reloads the saved report, rebuilds from raw
-   brackets, downloads the current report, and shows the corrections history.
+   correct picks, pending games, accuracy, and a total-points bar chart. Select
+   a row in the standings to open that entrant's bracket. Every matchup shows
+   both teams and a result line: correct picks are green with a check, incorrect
+   picks red with an X, and pending picks gray with a dash. The page also shows
+   the tie-break rule and a CSV download.
+6. **Save/Load** saves now, reloads the saved report, rebuilds from raw
+   brackets, downloads the current report, and records entrant corrections and
+   their history.
 
 ### Local folder and persistence
 
@@ -96,7 +95,7 @@ any local folder path can be entered.
 
 ### Entrant correction policy
 
-Entrant picks are read-only during normal use. Compare contains an advanced
+Entrant picks are read-only during normal use. Save/Load contains an advanced
 **Correct an entrant pick** control. It requires a reason and an explicit
 confirmation, validates the corrected team against the bracket, appends an
 entry to the **Corrections** sheet, and saves it with the report. Existing

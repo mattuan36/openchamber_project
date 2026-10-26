@@ -82,15 +82,26 @@ def test_streamlit_demo_load_edit_views_save_and_reload(tmp_path: Path) -> None:
     assert metrics["Leader"] == "MATT"
     assert metrics["Pending games"] == "3"
 
-    app.segmented_control(key="nav").set_value("Compare")
+    app.session_state["leaderboard_entrant"] = 1
     app.run()
     assert not app.exception
-    assert app.selectbox(key="compare_index").value == 0
-    assert app.selectbox(key="correction_slot").value == "CH"
+    bracket_markup = "\n".join(block.value for block in app.markdown)
+    assert "CHRIS" in bracket_markup
+    assert "entrant-team-row" in bracket_markup
+    assert '"entrant-team-row picked correct"' in bracket_markup
+    assert '"entrant-team-row picked incorrect"' in bracket_markup
+    assert '"entrant-team-row picked pending"' in bracket_markup
+    assert "Duke" in bracket_markup
+    assert "Siena" in bracket_markup
+    assert "Correct - 1 pt" in bracket_markup
+    assert "Incorrect - 0 pts" in bracket_markup
+    assert "Pending - 0 pts" in bracket_markup
 
     app.segmented_control(key="nav").set_value("Save/Load")
     app.run()
     assert not app.exception
+    assert app.selectbox(key="correction_entrant").value == 0
+    assert app.selectbox(key="correction_slot").value == "CH"
     app.button(key="save_now").click()
     app.run()
     assert not app.exception

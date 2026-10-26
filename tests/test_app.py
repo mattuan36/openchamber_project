@@ -95,6 +95,8 @@ def test_streamlit_demo_load_edit_views_save_and_reload(tmp_path: Path) -> None:
     assert "Siena" in bracket_markup
     assert "Correct - 1 pt" in bracket_markup
     assert "Incorrect - 0 pts" in bracket_markup
+    assert "entrant-result-note" in bracket_markup
+    assert "(Arizona)" in bracket_markup
     assert "Pending - 0 pts" in bracket_markup
 
     app.segmented_control(key="nav").set_value("Save/Load")

@@ -203,16 +203,20 @@ st.markdown(
       .entrant-mark.correct { color: #22c55e; }
       .entrant-mark.incorrect { color: #ef4444; }
       .entrant-mark.pending { color: #9aa3b1; }
-      .entrant-result { display: flex; align-items: center; gap: .22rem;
-                        padding: 0 .12rem; font-size: .54rem; font-weight: 650;
+      .entrant-result { display: flex; align-items: center; flex-wrap: wrap;
+                        gap: .22rem; row-gap: .08rem; padding: 0 .12rem;
+                        font-size: .54rem; font-weight: 650;
                         letter-spacing: .05em; line-height: 1.2;
                         text-transform: uppercase; opacity: .82; }
+      .entrant-result-label { min-width: 0; }
+      .entrant-result-note { color: #22c55e; font-weight: 500;
+                             letter-spacing: 0; text-transform: none; opacity: .95; }
       .entrant-result-mark { font-weight: 800; }
       .entrant-result-mark.correct { color: #22c55e; }
       .entrant-result-mark.incorrect { color: #ef4444; }
       .entrant-result-mark.pending { color: #9aa3b1; }
       .entrant-card.play-in { gap: .12rem; }
-      .entrant-card.play-in .entrant-team-row { min-height: 1.3rem; font-size: .62rem; }
+      .entrant-card.play-in .entrant-team-row { min-height: 1.2rem; font-size: .62rem; }
       .entrant-card.play-in .entrant-result { font-size: .48rem; line-height: 1.1; }
       [class*="st-key-entrant_bracket"] [class*="st-key-matchup_"] {
         height: auto !important; min-height: 5.6rem; }
@@ -225,7 +229,7 @@ st.markdown(
                     font-size: .82rem; opacity: .8; overflow-wrap: anywhere; }
 
       /* Actual-results bracket board */
-      :root { --bracket-pitch: 108px; --bracket-gap: 4px; }
+      :root { --bracket-pitch: 112px; --bracket-gap: 4px; }
       .bracket-region-head { display: flex; justify-content: space-between;
                               align-items: baseline; gap: .4rem; margin: 0 0 .3rem;
                               font-size: .68rem; font-weight: 700;
@@ -310,7 +314,7 @@ st.markdown(
       [class*="st-key-matchup_"] button p { white-space: nowrap; overflow: hidden;
                                             text-overflow: ellipsis; }
       @media (max-width: 1000px) {
-        :root { --bracket-pitch: 104px; }
+        :root { --bracket-pitch: 112px; }
         [class*="st-key-matchup_"] button { font-size: .62rem; }
         .bracket-path { display: none; }
       }
@@ -1110,6 +1114,12 @@ def _matchup_card(
                 else f"{result.points} pts"
             )
             result_label = f"{result.status.title()} - {points_label}"
+            correct_note = ""
+            if result.status == "incorrect" and result.actual:
+                correct_note = (
+                    f'<span class="entrant-result-note">'
+                    f"({escape(result.actual)})</span>"
+                )
             symbol = (
                 "✓"
                 if result.status == "correct"
@@ -1130,7 +1140,10 @@ def _matchup_card(
                 f'{"".join(rows)}'
                 f'<div class="entrant-result {result.status}">'
                 f'<span class="entrant-result-mark {result.status}">'
-                f"{symbol}</span> {escape(result_label)}</div></div>",
+                f"{symbol}</span>"
+                f'<span class="entrant-result-label">'
+                f"{escape(result_label)}</span>"
+                f"{correct_note}</div></div>",
                 unsafe_allow_html=True,
             )
             return
